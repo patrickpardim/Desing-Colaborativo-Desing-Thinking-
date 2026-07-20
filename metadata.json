@@ -1,0 +1,6 @@
+{
+  "name": "Design Colaborativo",
+  "description": "Plataforma colaborativa em tempo real para dinâmicas de Design Thinking, brainstorming e salas de aula ativas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
