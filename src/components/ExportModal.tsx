@@ -1,6 +1,7 @@
 import React from 'react';
 import { Room, Idea, RoomColumn } from '../types';
-import { Download, X, Printer, FileText } from 'lucide-react';
+import { Download, X, Printer, FileText, File } from 'lucide-react';
+import { jsPDF } from 'jspdf';
 
 interface ExportModalProps {
   room: Room;
@@ -13,6 +14,140 @@ export default function ExportModal({ room, columns, ideas, onClose }: ExportMod
   
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleDownloadPDF = () => {
+    try {
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const margin = 15;
+      const contentWidth = pageWidth - (margin * 2); // 180mm
+      let y = 20;
+
+      // Helper to check page boundary and add new page
+      const checkPageBreak = (neededHeight: number) => {
+        if (y + neededHeight > pageHeight - margin) {
+          doc.addPage();
+          y = 20;
+          return true;
+        }
+        return false;
+      };
+
+      // Title header banner
+      doc.setFillColor(79, 70, 229); // indigo-600
+      doc.rect(margin, y, contentWidth, 8, 'F');
+      y += 5;
+
+      // Header Text
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(255, 255, 255);
+      doc.text('RELATÓRIO COMPLETO DA SESSÃO - DESIGN COLABORATIVO', margin + 4, y);
+      y += 8;
+
+      // Room Title
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.setTextColor(15, 23, 42); // slate-900
+      const titleLines = doc.splitTextToSize(room.title, contentWidth);
+      checkPageBreak(titleLines.length * 6 + 10);
+      doc.text(titleLines, margin, y);
+      y += (titleLines.length * 6) + 3;
+
+      // Metadata Bar
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139); // slate-500
+      
+      const templateName = room.template === 'design-thinking' 
+        ? 'Design Thinking' 
+        : room.template === 'sticky-board' 
+          ? 'Quadro Livre' 
+          : 'Matriz de Priorização';
+
+      doc.text(`Facilitador: @${room.facilitatorName}   |   PIN: ${room.pin}   |   Metodologia: ${templateName}`, margin, y);
+      y += 8;
+
+      // Divider line
+      doc.setDrawColor(226, 232, 240); // slate-200
+      doc.line(margin, y, margin + contentWidth, y);
+      y += 8;
+
+      // Iterate over columns
+      columns.forEach(col => {
+        const colIdeas = ideas.filter(i => i.columnId === col.id);
+        
+        // Column Header Section
+        checkPageBreak(15);
+        doc.setFillColor(241, 245, 249); // slate-100
+        doc.rect(margin, y, contentWidth, 8, 'F');
+        doc.setDrawColor(79, 70, 229); // indigo-600 left border accent
+        doc.setLineWidth(1);
+        doc.line(margin, y, margin, y + 8);
+        
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(51, 65, 85); // slate-700
+        doc.text(`${col.title.toUpperCase()} (${colIdeas.length})`, margin + 4, y + 5.5);
+        y += 12;
+
+        if (colIdeas.length === 0) {
+          doc.setFont('helvetica', 'italic');
+          doc.setFontSize(9);
+          doc.setTextColor(148, 163, 184); // slate-400
+          doc.text('Nenhum post-it adicionado nesta etapa.', margin + 4, y);
+          y += 6;
+        } else {
+          colIdeas.forEach(idea => {
+            const author = room.anonymizeAuthors ? 'Anônimo' : idea.authorName;
+            
+            // Generate full idea block detail
+            const ideaText = idea.text;
+            const detailText = `Por: @${author}  |  Votos: ${idea.votes}`;
+            
+            // Format text lines
+            const textLines = doc.splitTextToSize(ideaText, contentWidth - 12);
+            const neededHeight = (textLines.length * 5) + 12; // 12 for metadata and spacing
+            
+            checkPageBreak(neededHeight);
+
+            // Draw post-it card box outline
+            doc.setFillColor(250, 250, 250);
+            doc.setDrawColor(226, 232, 240);
+            doc.setLineWidth(0.3);
+            doc.rect(margin + 2, y, contentWidth - 4, neededHeight - 3, 'FD');
+
+            // Draw Idea text
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(9);
+            doc.setTextColor(30, 41, 59); // slate-800
+            doc.text(textLines, margin + 6, y + 5);
+
+            // Draw details (Author + Votes)
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8);
+            doc.setTextColor(100, 116, 139); // slate-500
+            doc.text(detailText, margin + 6, y + (textLines.length * 5) + 5);
+
+            y += neededHeight;
+          });
+        }
+        y += 4; // Add spacing between columns
+      });
+
+      // Save PDF document
+      doc.save(`resultado_${room.pin}_design_colaborativo.pdf`);
+    } catch (err) {
+      console.error('Error generating PDF report:', err);
+      alert('Houve um erro ao gerar o PDF. Por favor, tente exportar via impressão.');
+    }
   };
 
   const getCSVData = () => {
@@ -121,7 +256,7 @@ export default function ExportModal({ room, columns, ideas, onClose }: ExportMod
         </div>
 
         {/* Modal Footer Controls */}
-        <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5 shrink-0">
+        <div className="p-4 bg-slate-50 border-t border-slate-100 flex flex-wrap items-center justify-end gap-2 shrink-0">
           <button
             id="btn_download_csv"
             onClick={getCSVData}
@@ -131,11 +266,19 @@ export default function ExportModal({ room, columns, ideas, onClose }: ExportMod
           </button>
           
           <button
-            id="btn_print_pdf"
-            onClick={handlePrint}
+            id="btn_download_pdf_direct"
+            onClick={handleDownloadPDF}
             className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-2 shadow-sm shadow-indigo-100 cursor-pointer"
           >
-            <Printer className="w-4 h-4" /> Imprimir / PDF
+            <File className="w-4 h-4" /> Download PDF
+          </button>
+
+          <button
+            id="btn_print_pdf"
+            onClick={handlePrint}
+            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all flex items-center gap-2 cursor-pointer"
+          >
+            <Printer className="w-4 h-4" /> Imprimir
           </button>
         </div>
 
