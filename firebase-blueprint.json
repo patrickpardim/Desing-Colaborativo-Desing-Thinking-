@@ -1,0 +1,87 @@
+{
+  "entities": {
+    "Room": {
+      "title": "Room",
+      "description": "Collaborative workshop session room",
+      "type": "object",
+      "properties": {
+        "pin": { "type": "string", "description": "6-digit room PIN code" },
+        "title": { "type": "string", "description": "Title of the session" },
+        "facilitatorName": { "type": "string", "description": "Name of the facilitator" },
+        "template": { "type": "string", "enum": ["design-thinking", "sticky-board"] },
+        "status": { "type": "string", "enum": ["waiting", "active", "voting", "locked"] },
+        "timerSeconds": { "type": "number" },
+        "timerActive": { "type": "boolean" },
+        "anonymizeAuthors": { "type": "boolean" },
+        "autoTimer": { "type": "boolean" },
+        "maxVotesPerPerson": { "type": "number" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["pin", "title", "facilitatorName", "template", "status"]
+    },
+    "Idea": {
+      "title": "Idea",
+      "description": "Post-it note idea created by a participant",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "text": { "type": "string", "maxLength": 500 },
+        "color": { "type": "string", "enum": ["yellow", "blue", "green", "pink", "purple"] },
+        "columnId": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorAvatar": { "type": "string" },
+        "votes": { "type": "number" },
+        "reactions": { "type": "object" },
+        "hidden": { "type": "boolean" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "text", "columnId", "authorId"]
+    },
+    "Participant": {
+      "title": "Participant",
+      "description": "Participant in the workshop session",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "avatar": { "type": "string" },
+        "isFacilitator": { "type": "boolean" },
+        "votesLeft": { "type": "number" },
+        "online": { "type": "boolean" },
+        "lastSeen": { "type": "number" }
+      },
+      "required": ["id", "name"]
+    },
+    "RoomColumn": {
+      "title": "RoomColumn",
+      "description": "Column or stage in the workshop room",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "color": { "type": "string" },
+        "locked": { "type": "boolean" }
+      },
+      "required": ["id", "title"]
+    }
+  },
+  "firestore": {
+    "/rooms/{pin}": {
+      "schema": "Room",
+      "description": "Workshop session room document"
+    },
+    "/rooms/{pin}/ideas/{ideaId}": {
+      "schema": "Idea",
+      "description": "Post-it notes inside a workshop room"
+    },
+    "/rooms/{pin}/participants/{participantId}": {
+      "schema": "Participant",
+      "description": "Participants in a room"
+    },
+    "/rooms/{pin}/columns/{columnId}": {
+      "schema": "RoomColumn",
+      "description": "Columns in a room"
+    }
+  }
+}

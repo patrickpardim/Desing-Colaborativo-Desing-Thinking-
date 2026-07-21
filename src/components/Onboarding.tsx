@@ -5,6 +5,8 @@ import { Sparkles, Users, Lock, ChevronRight, Play, ArrowRight, Video, Copy, Che
 import { motion } from 'motion/react';
 import { useLanguage, LanguageSelector } from '../context/LanguageContext';
 
+import { fetchRoomsFromFirestore } from '../services/firebaseRoomService';
+
 interface OnboardingProps {
   onJoinRoom: (pin: string, name: string, avatar: string) => void;
   onCreateRoom: (title: string, facilitatorName: string, template: RoomTemplate) => void;
@@ -36,17 +38,18 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
   const [roomTemplate, setRoomTemplate] = useState<RoomTemplate>('design-thinking');
 
   useEffect(() => {
-    const loadRooms = () => {
-      const rooms: OpenRoom[] = [];
+    const loadRooms = async () => {
+      const roomMap = new Map<string, OpenRoom>();
       try {
+        // First load from localStorage
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
           if (key && key.startsWith('room_')) {
-            const pinVal = key.substring(5); // room_123456 -> 123456
+            const pinVal = key.substring(5);
             const roomData = localStorage.getItem(key);
             if (roomData) {
               const parsed = JSON.parse(roomData);
-              rooms.push({
+              roomMap.set(pinVal, {
                 pin: pinVal,
                 title: parsed.title || 'Sem título',
                 facilitatorName: parsed.facilitatorName || 'Anônimo',
@@ -56,15 +59,27 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
             }
           }
         }
-        setOpenRooms(rooms);
+
+        // Fetch from Firestore
+        const fsRooms = await fetchRoomsFromFirestore();
+        fsRooms.forEach(r => {
+          roomMap.set(r.pin, {
+            pin: r.pin,
+            title: r.title || 'Sem título',
+            facilitatorName: r.facilitatorName || 'Anônimo',
+            template: r.template || 'design-thinking',
+            status: r.status || 'waiting'
+          });
+        });
+
+        setOpenRooms(Array.from(roomMap.values()));
       } catch (err) {
         console.error('Error loading open rooms', err);
       }
     };
     loadRooms();
     
-    // Listen for room storage updates or BroadcastChannel if needed, but simple interval is robust
-    const interval = setInterval(loadRooms, 3000);
+    const interval = setInterval(loadRooms, 4000);
     return () => clearInterval(interval);
   }, []);
 

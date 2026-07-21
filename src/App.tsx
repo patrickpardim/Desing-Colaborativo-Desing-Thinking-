@@ -11,6 +11,21 @@ import ExportModal from './components/ExportModal';
 import AdminConsole from './components/AdminConsole';
 
 import { Plus, Check, Volume2, VolumeX, Sparkles, AlertCircle, Copy, CheckCircle2, LayoutGrid, Heart } from 'lucide-react';
+import {
+  createRoomInFirestore,
+  joinRoomInFirestore,
+  subscribeToRoom,
+  subscribeToColumns,
+  subscribeToIdeas,
+  subscribeToParticipants,
+  updateRoomInFirestore,
+  updateColumnInFirestore,
+  addIdeaToFirestore,
+  updateIdeaInFirestore,
+  deleteIdeaInFirestore,
+  updateParticipantInFirestore,
+  terminateRoomInFirestore
+} from './services/firebaseRoomService';
 
 // Generates a random tab identifier
 const getTabId = () => Math.random().toString(36).substring(2, 9);
@@ -205,6 +220,59 @@ export default function App() {
     };
   }, [room?.pin, soundEnabled]);
 
+  // 3. Realtime Firestore Subscriptions
+  useEffect(() => {
+    if (!room?.pin) return;
+
+    const currentPin = room.pin;
+
+    // Subscribe to Room changes
+    const unsubRoom = subscribeToRoom(currentPin, (updatedRoom) => {
+      if (!updatedRoom) {
+        setRoom(null);
+        setIdeas([]);
+        setParticipants([]);
+        setColumns([]);
+        setCurrentUser(null);
+        return;
+      }
+      setRoom(updatedRoom);
+      localStorage.setItem(`room_${currentPin}`, JSON.stringify(updatedRoom));
+    });
+
+    // Subscribe to Columns
+    const unsubCols = subscribeToColumns(currentPin, (updatedCols) => {
+      if (updatedCols.length > 0) {
+        setColumns(updatedCols);
+        localStorage.setItem(`columns_${currentPin}`, JSON.stringify(updatedCols));
+      }
+    });
+
+    // Subscribe to Ideas
+    const unsubIdeas = subscribeToIdeas(currentPin, (updatedIdeas) => {
+      setIdeas(updatedIdeas);
+      localStorage.setItem(`ideas_${currentPin}`, JSON.stringify(updatedIdeas));
+    });
+
+    // Subscribe to Participants
+    const unsubParts = subscribeToParticipants(currentPin, (updatedParts) => {
+      setParticipants(updatedParts);
+      localStorage.setItem(`participants_${currentPin}`, JSON.stringify(updatedParts));
+      setCurrentUser(prev => {
+        if (!prev) return null;
+        const updatedSelf = updatedParts.find(p => p.id === prev.id);
+        return updatedSelf ? { ...prev, ...updatedSelf } : prev;
+      });
+    });
+
+    return () => {
+      unsubRoom();
+      unsubCols();
+      unsubIdeas();
+      unsubParts();
+    };
+  }, [room?.pin]);
+
   // Toast notifier helper
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -230,34 +298,49 @@ export default function App() {
   };
 
   // ONBOARDING ACTION: Join Existing Room
-  const handleJoinRoom = (pin: string, name: string, avatar: string) => {
+  const handleJoinRoom = async (pin: string, name: string, avatar: string) => {
     triggerSound('success');
 
-    // Retrieve room from localStorage
+    // Retrieve room from localStorage as fallback initial state
+    let roomObj: Room | null = null;
+    let columnsObj: RoomColumn[] = [];
+    let ideasObj: Idea[] = [];
+    let participantsObj: Participant[] = [];
+
     const savedRoom = localStorage.getItem(`room_${pin}`);
-    if (!savedRoom) {
+    if (savedRoom) {
+      roomObj = JSON.parse(savedRoom);
+      columnsObj = JSON.parse(localStorage.getItem(`columns_${pin}`) || '[]');
+      ideasObj = JSON.parse(localStorage.getItem(`ideas_${pin}`) || '[]');
+      participantsObj = JSON.parse(localStorage.getItem(`participants_${pin}`) || '[]');
+    }
+
+    const isFacil = roomObj ? (name.trim().toLowerCase() === roomObj.facilitatorName.trim().toLowerCase()) : false;
+    const existingFacil = participantsObj.find(p => p.isFacilitator);
+
+    const newUser: Participant = {
+      id: isFacil ? (existingFacil?.id || `facilitator_${Date.now()}`) : `user_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      name: isFacil ? roomObj?.facilitatorName || name : name,
+      avatar: isFacil ? '👑' : avatar,
+      isFacilitator: isFacil,
+      votesLeft: isFacil ? 0 : (roomObj ? roomObj.maxVotesPerPerson : 5),
+      online: true
+    };
+
+    // Try joining in Firestore
+    try {
+      const fsRoom = await joinRoomInFirestore(pin, newUser);
+      if (fsRoom) {
+        roomObj = fsRoom;
+      }
+    } catch (err) {
+      console.warn("Firestore join error:", err);
+    }
+
+    if (!roomObj) {
       alert(`Sala com PIN ${pin} não encontrada. Por favor, crie uma como facilitador.`);
       return;
     }
-
-    const roomObj: Room = JSON.parse(savedRoom);
-    const columnsObj: RoomColumn[] = JSON.parse(localStorage.getItem(`columns_${pin}`) || '[]');
-    const ideasObj: Idea[] = JSON.parse(localStorage.getItem(`ideas_${pin}`) || '[]');
-    const participantsObj: Participant[] = JSON.parse(localStorage.getItem(`participants_${pin}`) || '[]');
-
-    // Detect if this person is rejoining as the facilitator/owner
-    const isFacil = name.trim().toLowerCase() === roomObj.facilitatorName.trim().toLowerCase();
-    const existingFacil = participantsObj.find(p => p.isFacilitator);
-
-    // Setup current user
-    const newUser: Participant = {
-      id: isFacil ? (existingFacil?.id || `facilitator_${Date.now()}`) : `user_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      name: isFacil ? roomObj.facilitatorName : name,
-      avatar: isFacil ? '👑' : avatar,
-      isFacilitator: isFacil,
-      votesLeft: isFacil ? 0 : roomObj.maxVotesPerPerson,
-      online: true
-    };
 
     const updatedParticipants = [
       ...participantsObj.filter(p => p.name.trim().toLowerCase() !== name.trim().toLowerCase()), 
@@ -267,7 +350,7 @@ export default function App() {
     localStorage.setItem(`participants_${pin}`, JSON.stringify(updatedParticipants));
 
     setRoom(roomObj);
-    setColumns(columnsObj);
+    if (columnsObj.length > 0) setColumns(columnsObj);
     setIdeas(ideasObj);
     setParticipants(updatedParticipants);
     setCurrentUser(newUser);
@@ -277,7 +360,7 @@ export default function App() {
   };
 
   // ONBOARDING ACTION: Create New Room
-  const handleCreateRoom = (title: string, facilitatorName: string, template: RoomTemplate) => {
+  const handleCreateRoom = async (title: string, facilitatorName: string, template: RoomTemplate) => {
     triggerSound('success');
 
     // Generate random unique 6-digit PIN code
@@ -313,6 +396,13 @@ export default function App() {
     localStorage.setItem(`ideas_${pin}`, JSON.stringify([]));
     localStorage.setItem(`participants_${pin}`, JSON.stringify([facilitatorUser]));
 
+    // Persist to Firestore
+    try {
+      await createRoomInFirestore(roomObj, columnsObj, facilitatorUser);
+    } catch (err) {
+      console.warn("Firestore create room error:", err);
+    }
+
     setRoom(roomObj);
     setColumns(columnsObj);
     setIdeas([]);
@@ -328,7 +418,7 @@ export default function App() {
   };
 
   // LEAVE / DISCONNECT ACTION
-  const handleLeaveRoom = () => {
+  const handleLeaveRoom = async () => {
     triggerSound('click');
     if (!room || !currentUser) return;
 
@@ -338,6 +428,13 @@ export default function App() {
     );
 
     localStorage.setItem(`participants_${room.pin}`, JSON.stringify(updatedParticipants));
+
+    try {
+      await updateParticipantInFirestore(room.pin, currentUser.id, { online: false });
+    } catch (err) {
+      console.warn("Firestore leave error:", err);
+    }
+
     broadcastChange('TOAST_ALERT', `${currentUser.avatar} ${currentUser.name} saiu do quadro.`);
     broadcastChange('STATE_CHANGED');
 
@@ -350,7 +447,7 @@ export default function App() {
   };
 
   // FACILITATOR: Delete/Shutdown Room completely (irrecoverable)
-  const handleDeleteRoomByFacilitator = () => {
+  const handleDeleteRoomByFacilitator = async () => {
     triggerSound('success');
     if (!room) return;
     const pin = room.pin;
@@ -360,6 +457,12 @@ export default function App() {
     localStorage.removeItem(`columns_${pin}`);
     localStorage.removeItem(`ideas_${pin}`);
     localStorage.removeItem(`participants_${pin}`);
+
+    try {
+      await terminateRoomInFirestore(pin);
+    } catch (err) {
+      console.warn("Firestore terminate error:", err);
+    }
 
     // Broadcast room destruction to other clients
     broadcastChange('ROOM_TERMINATED', { pin });
@@ -373,7 +476,7 @@ export default function App() {
   };
 
   // DYNAMIC ACTION: Add New Idea Post-it
-  const handleAddIdeaSubmit = (e?: React.FormEvent) => {
+  const handleAddIdeaSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!room || !currentUser) return;
     if (!newIdeaText.trim()) return;
@@ -408,6 +511,13 @@ export default function App() {
     setIsNewIdeaOpen(false);
 
     triggerSound('pop');
+
+    try {
+      await addIdeaToFirestore(room.pin, newIdea);
+    } catch (err) {
+      console.warn("Firestore add idea error:", err);
+    }
+
     broadcastChange('NEW_POSTIT', newIdea);
   };
 
@@ -417,7 +527,7 @@ export default function App() {
   };
 
   // DYNAMIC ACTION: Toggle Reaction/Vote with card limits and room total limits
-  const handleReactIdea = (ideaId: string, emoji: string) => {
+  const handleReactIdea = async (ideaId: string, emoji: string) => {
     if (!room || !currentUser) return;
 
     const savedIdeas: Idea[] = JSON.parse(localStorage.getItem(`ideas_${room.pin}`) || '[]');
@@ -436,6 +546,7 @@ export default function App() {
     const hasVoted = votedUsers.includes(currentUser.id);
 
     let updatedIdeas: Idea[] = [];
+    let updatedIdeaPayload: Partial<Idea> | null = null;
 
     if (hasVoted) {
       // Unvote / Toggle Off
@@ -454,6 +565,7 @@ export default function App() {
           // Keep i.votes in sync with the 👍 reactions count for old compatibility
           const votes = emoji === '👍' ? Math.max(0, (i.votes || 0) - 1) : (i.votes || 0);
 
+          updatedIdeaPayload = { reactions, votedUsersByEmoji, votes };
           return { ...i, reactions, votedUsersByEmoji, votes };
         }
         return i;
@@ -502,6 +614,7 @@ export default function App() {
           // Compute new compatibility "votes" (using 👍 count as votes)
           const votes = reactions['👍'] || 0;
 
+          updatedIdeaPayload = { reactions, votedUsersByEmoji, votes };
           return { ...i, reactions, votedUsersByEmoji, votes };
         }
         return i;
@@ -539,11 +652,23 @@ export default function App() {
       setCurrentUser(updatedSelf);
     }
 
+    // Update in Firestore
+    try {
+      if (updatedIdeaPayload) {
+        await updateIdeaInFirestore(room.pin, ideaId, updatedIdeaPayload);
+      }
+      if (updatedSelf) {
+        await updateParticipantInFirestore(room.pin, currentUser.id, { votesLeft: updatedSelf.votesLeft });
+      }
+    } catch (err) {
+      console.warn("Firestore vote reaction error:", err);
+    }
+
     broadcastChange('STATE_CHANGED');
   };
 
   // DYNAMIC ACTION: Edit Idea post-it content
-  const handleEditIdea = (ideaId: string, newText: string) => {
+  const handleEditIdea = async (ideaId: string, newText: string) => {
     if (!room) return;
 
     const savedIdeas: Idea[] = JSON.parse(localStorage.getItem(`ideas_${room.pin}`) || '[]');
@@ -554,12 +679,18 @@ export default function App() {
     localStorage.setItem(`ideas_${room.pin}`, JSON.stringify(updatedIdeas));
     setIdeas(updatedIdeas);
 
+    try {
+      await updateIdeaInFirestore(room.pin, ideaId, { text: newText });
+    } catch (err) {
+      console.warn("Firestore edit idea error:", err);
+    }
+
     triggerSound('click');
     broadcastChange('STATE_CHANGED');
   };
 
   // DYNAMIC ACTION: Delete Idea post-it
-  const handleDeleteIdea = (ideaId: string) => {
+  const handleDeleteIdea = async (ideaId: string) => {
     if (!room) return;
 
     const savedIdeas: Idea[] = JSON.parse(localStorage.getItem(`ideas_${room.pin}`) || '[]');
@@ -568,12 +699,18 @@ export default function App() {
     localStorage.setItem(`ideas_${room.pin}`, JSON.stringify(updatedIdeas));
     setIdeas(updatedIdeas);
 
+    try {
+      await deleteIdeaInFirestore(room.pin, ideaId);
+    } catch (err) {
+      console.warn("Firestore delete idea error:", err);
+    }
+
     triggerSound('click');
     broadcastChange('STATE_CHANGED');
   };
 
   // DYNAMIC ACTION: Move Note across columns
-  const handleMoveColumn = (ideaId: string, direction: 'left' | 'right') => {
+  const handleMoveColumn = async (ideaId: string, direction: 'left' | 'right') => {
     if (!room || columns.length === 0) return;
 
     const savedIdeas: Idea[] = JSON.parse(localStorage.getItem(`ideas_${room.pin}`) || '[]');
@@ -600,24 +737,36 @@ export default function App() {
       localStorage.setItem(`ideas_${room.pin}`, JSON.stringify(updatedIdeas));
       setIdeas(updatedIdeas);
 
+      try {
+        await updateIdeaInFirestore(room.pin, ideaId, { columnId: targetColumn.id });
+      } catch (err) {
+        console.warn("Firestore move column error:", err);
+      }
+
       triggerSound('click');
       broadcastChange('STATE_CHANGED');
     }
   };
 
   // FACILITATOR: Edit Room Setting parameters
-  const handleUpdateRoom = (roomUpdates: Partial<Room>) => {
+  const handleUpdateRoom = async (roomUpdates: Partial<Room>) => {
     if (!room) return;
 
     const updatedRoom = { ...room, ...roomUpdates };
     localStorage.setItem(`room_${room.pin}`, JSON.stringify(updatedRoom));
     setRoom(updatedRoom);
 
+    try {
+      await updateRoomInFirestore(room.pin, roomUpdates);
+    } catch (err) {
+      console.warn("Firestore update room error:", err);
+    }
+
     broadcastChange('RELOAD_ROOM');
   };
 
   // FACILITATOR: Lock or Unlock Column Dynamic
-  const handleUpdateColumnLock = (columnId: string, locked: boolean) => {
+  const handleUpdateColumnLock = async (columnId: string, locked: boolean) => {
     if (!room) return;
 
     const updatedColumns = columns.map(c => 
@@ -626,12 +775,18 @@ export default function App() {
     localStorage.setItem(`columns_${room.pin}`, JSON.stringify(updatedColumns));
     setColumns(updatedColumns);
 
+    try {
+      await updateColumnInFirestore(room.pin, columnId, { locked });
+    } catch (err) {
+      console.warn("Firestore update column lock error:", err);
+    }
+
     broadcastChange('STATE_CHANGED');
     broadcastChange('TOAST_ALERT', `A etapa "${columns.find(c => c.id === columnId)?.title}" foi ${locked ? 'travada 🔒' : 'destravada 🔓'}`);
   };
 
   // FACILITATOR: Reveal Hidden post-its
-  const handleRevealAllIdeas = () => {
+  const handleRevealAllIdeas = async () => {
     if (!room) return;
 
     const savedIdeas: Idea[] = JSON.parse(localStorage.getItem(`ideas_${room.pin}`) || '[]');
@@ -639,13 +794,23 @@ export default function App() {
     localStorage.setItem(`ideas_${room.pin}`, JSON.stringify(updatedIdeas));
     setIdeas(updatedIdeas);
 
+    try {
+      for (const i of savedIdeas) {
+        if (i.hidden) {
+          await updateIdeaInFirestore(room.pin, i.id, { hidden: false });
+        }
+      }
+    } catch (err) {
+      console.warn("Firestore reveal ideas error:", err);
+    }
+
     triggerSound('success');
     broadcastChange('STATE_CHANGED');
     broadcastChange('TOAST_ALERT', '🎉 O facilitador revelou todas as ideias ocultas!');
   };
 
   // FACILITATOR: Clear Votes to restart
-  const handleClearVotes = () => {
+  const handleClearVotes = async () => {
     if (!room) return;
 
     // Reset participants votes
@@ -670,6 +835,21 @@ export default function App() {
     }));
     localStorage.setItem(`ideas_${room.pin}`, JSON.stringify(updatedIdeas));
     setIdeas(updatedIdeas);
+
+    try {
+      for (const p of savedParticipants) {
+        await updateParticipantInFirestore(room.pin, p.id, { votesLeft: room.maxVotesPerPerson });
+      }
+      for (const i of savedIdeas) {
+        await updateIdeaInFirestore(room.pin, i.id, {
+          votes: 0,
+          reactions: { '👍': 0, '👎': 0 },
+          votedUsersByEmoji: { '👍': [], '👎': [] }
+        });
+      }
+    } catch (err) {
+      console.warn("Firestore clear votes error:", err);
+    }
 
     triggerSound('success');
     broadcastChange('STATE_CHANGED');
