@@ -3,6 +3,7 @@ import { AVATARS } from '../data';
 import { RoomTemplate, Participant } from '../types';
 import { Sparkles, Users, Lock, ChevronRight, Play, ArrowRight, Video, Copy, Check, ExternalLink, Eye, Key } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useLanguage, LanguageSelector } from '../context/LanguageContext';
 
 interface OnboardingProps {
   onJoinRoom: (pin: string, name: string, avatar: string) => void;
@@ -20,6 +21,7 @@ interface OpenRoom {
 }
 
 export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = '', onNavigateToAdmin = () => {} }: OnboardingProps) {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'join' | 'create'>('join');
   const [pin, setPin] = useState(prefilledPin);
   const [name, setName] = useState('');
@@ -86,14 +88,14 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
     if (cleanPin.length === 6 && /^\d+$/.test(cleanPin)) {
       setStep('profile');
     } else {
-      alert('Por favor, insira um PIN válido de 6 dígitos.');
+      alert(t('invalidPinAlert'));
     }
   };
 
   const handleJoinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      alert('Por favor, insira o seu nome.');
+      alert(t('enterNameAlert'));
       return;
     }
     const cleanPin = pin.replace(/\s+/g, '');
@@ -103,26 +105,31 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!roomTitle.trim()) {
-      alert('Por favor, insira o título da sessão.');
+      alert(t('enterTitleAlert'));
       return;
     }
     if (!facilitatorName.trim()) {
-      alert('Por favor, insira o seu nome.');
+      alert(t('enterNameAlert'));
       return;
     }
     onCreateRoom(roomTitle.trim(), facilitatorName.trim(), roomTemplate);
   };
 
   return (
-    <div id="onboarding_container" className="min-h-screen bg-[#F3F4F6] flex flex-col items-center justify-center p-4 md:p-6 font-sans">
+    <div id="onboarding_container" className="min-h-screen bg-[#F3F4F6] flex flex-col items-center justify-center p-4 md:p-6 font-sans relative">
       
+      {/* Top Language Selector */}
+      <div className="absolute top-4 right-4 z-20">
+        <LanguageSelector />
+      </div>
+
       {/* Title / Branding */}
       <div className="text-center mb-8 max-w-md">
         <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center text-white font-bold text-2xl mx-auto shadow-lg shadow-indigo-200 mb-4 border border-indigo-500">
           💡
         </div>
         <h1 className="text-3xl font-bold tracking-tight text-slate-900 font-display">
-          Design Colaborativo
+          {t('appName')}
         </h1>
       </div>
 
@@ -141,7 +148,7 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
                   : 'text-slate-500 hover:text-slate-900'
               }`}
             >
-              Entrar em Sala
+              {t('tabJoin')}
             </button>
             <button
               id="tab_create"
@@ -152,7 +159,7 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
                   : 'text-slate-500 hover:text-slate-900'
               }`}
             >
-              Sou Facilitador (Criar)
+              {t('tabCreate')}
             </button>
           </div>
         )}
@@ -165,8 +172,8 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
               {step === 'pin' ? (
                 <form id="form_pin" onSubmit={handlePinSubmit} className="space-y-6">
                   <div className="space-y-2 text-center">
-                    <h2 className="text-lg font-bold text-slate-800">Digitar Código PIN</h2>
-                    <p className="text-xs text-slate-400">Insira o código de 6 dígitos fornecido pelo facilitador</p>
+                    <h2 className="text-lg font-bold text-slate-800">{t('pinLabel')}</h2>
+                    <p className="text-xs text-slate-400">{t('pinPlaceholder')}</p>
                   </div>
                   
                   <div className="relative">
@@ -186,9 +193,9 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
                     id="btn_continue_pin"
                     type="submit"
                     disabled={pin.length !== 6}
-                    className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 text-white font-bold rounded-xl transition-all shadow-md shadow-indigo-100 flex items-center justify-center gap-2"
+                    className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 text-white font-bold rounded-xl transition-all shadow-md shadow-indigo-100 flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    Próximo Passo <ChevronRight className="w-5 h-5" />
+                    {t('continueBtn')} <ChevronRight className="w-5 h-5" />
                   </button>
                 </form>
               ) : (
@@ -197,9 +204,9 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
                     <button
                       type="button"
                       onClick={() => setStep('pin')}
-                      className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                      className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 cursor-pointer"
                     >
-                      ← Voltar para PIN
+                      ← {t('backBtn')}
                     </button>
                     <span className="text-xs font-mono font-bold px-2 py-1 bg-slate-100 rounded text-slate-600">
                       PIN: {pin}
@@ -207,12 +214,12 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
                   </div>
 
                   <div className="space-y-2">
-                    <label htmlFor="input_name" className="text-sm font-bold text-slate-700">Seu Nome / Apelido</label>
+                    <label htmlFor="input_name" className="text-sm font-bold text-slate-700">{t('yourNameLabel')}</label>
                     <input
                       id="input_name"
                       type="text"
                       maxLength={24}
-                      placeholder="Ex: Ana Paula"
+                      placeholder={t('namePlaceholder')}
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring focus:ring-indigo-100 outline-none text-slate-800 transition-all text-sm font-medium"
@@ -222,7 +229,7 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
                   </div>
 
                   <div className="space-y-3">
-                    <label className="text-sm font-bold text-slate-700 block">Escolha seu Avatar</label>
+                    <label className="text-sm font-bold text-slate-700 block">{t('chooseAvatar')}</label>
                     <div id="avatar_grid" className="grid grid-cols-6 gap-2">
                       {AVATARS.map((item) => {
                         const isSelected = selectedAvatar === item.emoji;
@@ -232,7 +239,7 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
                             key={item.emoji}
                             type="button"
                             onClick={() => setSelectedAvatar(item.emoji)}
-                            className={`w-11 h-11 text-xl flex items-center justify-center rounded-xl border transition-all ${
+                            className={`w-11 h-11 text-xl flex items-center justify-center rounded-xl border transition-all cursor-pointer ${
                               isSelected
                                 ? 'bg-indigo-50 border-indigo-500 ring-2 ring-indigo-200 scale-105 shadow-sm'
                                 : 'bg-slate-50 border-slate-200 hover:bg-slate-100 hover:scale-102'
@@ -247,15 +254,15 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
                   </div>
 
                   <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-3 text-[11px] text-slate-500 leading-relaxed font-medium">
-                    👑 <strong>Dica de Facilitador:</strong> Se você é o proprietário desta sala, digite o seu nome exato de facilitador para recuperar suas permissões administrativas de criador.
+                    {t('facilitatorTip')}
                   </div>
 
                   <button
                     id="btn_join_submit"
                     type="submit"
-                    className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-md shadow-indigo-100 flex items-center justify-center gap-2"
+                    className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-md shadow-indigo-100 flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    Entrar na Sala <Play className="w-4 h-4 fill-white" />
+                    {t('joinRoomBtn')} <Play className="w-4 h-4 fill-white" />
                   </button>
                 </form>
               )}
@@ -266,12 +273,12 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
           {activeTab === 'create' && (
             <form id="form_create_room" onSubmit={handleCreateSubmit} className="space-y-5">
               <div className="space-y-2">
-                <label htmlFor="input_facilitator" className="text-sm font-bold text-slate-700">Seu Nome (Facilitador)</label>
+                <label htmlFor="input_facilitator" className="text-sm font-bold text-slate-700">{t('facilitatorNameLabel')}</label>
                 <input
                   id="input_facilitator"
                   type="text"
                   maxLength={24}
-                  placeholder="Ex: Prof. Lucas"
+                  placeholder={t('facilitatorNamePlaceholder')}
                   value={facilitatorName}
                   onChange={(e) => setFacilitatorName(e.target.value)}
                   className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring focus:ring-indigo-100 outline-none text-slate-800 transition-all text-sm font-medium"
@@ -280,12 +287,12 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="input_title" className="text-sm font-bold text-slate-700">Título do Workshop / Brainstorming</label>
+                <label htmlFor="input_title" className="text-sm font-bold text-slate-700">{t('sessionTitleLabel')}</label>
                 <input
                   id="input_title"
                   type="text"
                   maxLength={50}
-                  placeholder="Ex: Workshop de UX: Melhorias no App"
+                  placeholder={t('sessionTitlePlaceholder')}
                   value={roomTitle}
                   onChange={(e) => setRoomTitle(e.target.value)}
                   className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring focus:ring-indigo-100 outline-none text-slate-800 transition-all text-sm font-medium"
@@ -294,7 +301,7 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700 block mb-2">Modelo de Dinâmica</label>
+                <label className="text-sm font-bold text-slate-700 block mb-2">{t('chooseTemplate')}</label>
                 
                 <div id="template_selection" className="space-y-2.5">
                   <label
@@ -315,8 +322,8 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
                     />
                     <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-sm font-bold shrink-0">💡</div>
                     <div className="text-left">
-                      <p className="text-sm font-bold text-slate-800">Etapas do Design Thinking</p>
-                      <p className="text-[11px] text-slate-500">Fluxo focado em Empatia, Ideação e Validação do produto.</p>
+                      <p className="text-sm font-bold text-slate-800">{t('dtTitle')}</p>
+                      <p className="text-[11px] text-slate-500">{t('dtDesc')}</p>
                     </div>
                   </label>
 
@@ -338,11 +345,10 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
                     />
                     <div className="w-8 h-8 rounded-lg bg-blue-500 text-white flex items-center justify-center text-sm font-bold shrink-0">📋</div>
                     <div className="text-left">
-                      <p className="text-sm font-bold text-slate-800">Quadro Livre / Kanban</p>
-                      <p className="text-[11px] text-slate-500">Estrutura simples de post-its: A Fazer, Em Progresso e Concluído.</p>
+                      <p className="text-sm font-bold text-slate-800">{t('stickyTitle')}</p>
+                      <p className="text-[11px] text-slate-500">{t('stickyDesc')}</p>
                     </div>
                   </label>
-
 
                 </div>
               </div>
@@ -350,9 +356,9 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
               <button
                 id="btn_create_submit"
                 type="submit"
-                className="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl transition-all shadow-md shadow-slate-100 flex items-center justify-center gap-2 mt-2"
+                className="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl transition-all shadow-md shadow-slate-100 flex items-center justify-center gap-2 mt-2 cursor-pointer"
               >
-                Criar Nova Sala <ArrowRight className="w-4 h-4" />
+                {t('createRoomBtn')} <ArrowRight className="w-4 h-4" />
               </button>
             </form>
           )}
@@ -365,8 +371,7 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
           <div className="flex items-center gap-2 pb-3 mb-3 border-b border-slate-100">
             <span className="text-base">🌐</span>
             <div>
-              <h3 className="text-sm font-bold text-slate-800">Salas em Aberto neste dispositivo</h3>
-              <p className="text-[10px] text-slate-400">Entre diretamente ou use os códigos listados</p>
+              <h3 className="text-sm font-bold text-slate-800">{t('activeRoomsTitle')}</h3>
             </div>
           </div>
           
@@ -377,12 +382,6 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
                 active: 'bg-indigo-50 text-indigo-700 border-indigo-100',
                 voting: 'bg-amber-50 text-amber-700 border-amber-100',
                 locked: 'bg-rose-50 text-rose-700 border-rose-100'
-              };
-              const statusLabels: Record<string, string> = {
-                waiting: 'Aguardando',
-                active: 'Ativa',
-                voting: 'Votação',
-                locked: 'Bloqueada'
               };
               
               return (
@@ -403,10 +402,6 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
                     </div>
                     <div className="flex items-center gap-2 text-[10px] text-slate-500 font-medium">
                       <span>Facilitador: {roomItem.facilitatorName}</span>
-                      <span className="text-slate-300">•</span>
-                      <span className={`px-1.5 py-0.2 rounded border text-[9px] font-bold ${statusColors[roomItem.status] || 'bg-slate-100'}`}>
-                        {statusLabels[roomItem.status] || roomItem.status}
-                      </span>
                     </div>
                   </div>
 
@@ -420,8 +415,8 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
                     <button
                       id={`btn_copy_list_pin_${roomItem.pin}`}
                       onClick={(e) => handleCopyPinInList(roomItem.pin, e)}
-                      className="p-1.5 hover:bg-slate-200 active:bg-slate-300 rounded-lg transition-all"
-                      title="Copiar Código"
+                      className="p-1.5 hover:bg-slate-200 active:bg-slate-300 rounded-lg transition-all cursor-pointer"
+                      title={t('copyPin')}
                     >
                       {copiedPin === roomItem.pin ? (
                         <Check className="w-3.5 h-3.5 text-emerald-600 font-bold" />
@@ -433,8 +428,8 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
                     <button
                       id={`btn_join_list_pin_${roomItem.pin}`}
                       onClick={() => handleSelectRoom(roomItem)}
-                      className="p-1.5 hover:bg-indigo-100 rounded-lg transition-all text-indigo-600"
-                      title="Entrar na Sala"
+                      className="p-1.5 hover:bg-indigo-100 rounded-lg transition-all text-indigo-600 cursor-pointer"
+                      title={t('enterRoom')}
                     >
                       <ExternalLink className="w-3.5 h-3.5" />
                     </button>
@@ -446,7 +441,7 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
         </div>
       )}
       
-      {/* Short quick tips section to assist direct validation */}
+      {/* Short quick tips section */}
       <div className="mt-8 text-center max-w-sm text-xs text-slate-400 leading-relaxed space-y-4">
         <div className="pt-1">
           <button
@@ -455,7 +450,7 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
             className="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-500 hover:text-indigo-600 bg-white hover:bg-indigo-50/40 border border-slate-200 px-3 py-1.5 rounded-full transition-all shadow-3xs cursor-pointer"
           >
             <Key className="w-3 h-3 text-slate-400 animate-pulse" />
-            Acesse o Console do Professor (Admin)
+            {t('adminPanel')}
           </button>
         </div>
       </div>

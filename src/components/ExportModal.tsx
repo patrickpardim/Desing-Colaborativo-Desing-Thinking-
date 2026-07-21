@@ -2,6 +2,7 @@ import React from 'react';
 import { Room, Idea, RoomColumn } from '../types';
 import { Download, X, Printer, FileText, File } from 'lucide-react';
 import { jsPDF } from 'jspdf';
+import { useLanguage } from '../context/LanguageContext';
 
 interface ExportModalProps {
   room: Room;
@@ -11,6 +12,7 @@ interface ExportModalProps {
 }
 
 export default function ExportModal({ room, columns, ideas, onClose }: ExportModalProps) {
+  const { t } = useLanguage();
   
   const handlePrint = () => {
     window.print();
@@ -49,7 +51,7 @@ export default function ExportModal({ room, columns, ideas, onClose }: ExportMod
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8);
       doc.setTextColor(255, 255, 255);
-      doc.text('RELATÓRIO COMPLETO DA SESSÃO - DESIGN COLABORATIVO', margin + 4, y);
+      doc.text(t('pdfReportHeader'), margin + 4, y);
       y += 8;
 
       // Room Title
@@ -67,12 +69,12 @@ export default function ExportModal({ room, columns, ideas, onClose }: ExportMod
       doc.setTextColor(100, 116, 139); // slate-500
       
       const templateName = room.template === 'design-thinking' 
-        ? 'Design Thinking' 
+        ? t('dtTitle') 
         : room.template === 'sticky-board' 
-          ? 'Quadro Livre' 
-          : 'Matriz de Priorização';
+          ? t('stickyTitle') 
+          : 'Matriz';
 
-      doc.text(`Facilitador: @${room.facilitatorName}   |   PIN: ${room.pin}   |   Metodologia: ${templateName}`, margin, y);
+      doc.text(`${t('facilitatorBadge')}: @${room.facilitatorName}   |   PIN: ${room.pin}   |   ${templateName}`, margin, y);
       y += 8;
 
       // Divider line
@@ -102,15 +104,15 @@ export default function ExportModal({ room, columns, ideas, onClose }: ExportMod
           doc.setFont('helvetica', 'italic');
           doc.setFontSize(9);
           doc.setTextColor(148, 163, 184); // slate-400
-          doc.text('Nenhum post-it adicionado nesta etapa.', margin + 4, y);
+          doc.text(t('noPostItsInStage'), margin + 4, y);
           y += 6;
         } else {
           colIdeas.forEach(idea => {
-            const author = room.anonymizeAuthors ? 'Anônimo' : idea.authorName;
+            const author = room.anonymizeAuthors ? t('anonymousAuthor') : idea.authorName;
             
             // Generate full idea block detail
             const ideaText = idea.text;
-            const detailText = `Por: @${author}  |  Votos: ${idea.votes}`;
+            const detailText = `${t('byAuthor')}: @${author}  |  Votos: ${idea.votes}`;
             
             // Format text lines
             const textLines = doc.splitTextToSize(ideaText, contentWidth - 12);
@@ -146,7 +148,7 @@ export default function ExportModal({ room, columns, ideas, onClose }: ExportMod
       doc.save(`resultado_${room.pin}_design_colaborativo.pdf`);
     } catch (err) {
       console.error('Error generating PDF report:', err);
-      alert('Houve um erro ao gerar o PDF. Por favor, tente exportar via impressão.');
+      alert('Error PDF export');
     }
   };
 
@@ -158,7 +160,7 @@ export default function ExportModal({ room, columns, ideas, onClose }: ExportMod
       const colIdeas = ideas.filter(i => i.columnId === col.id);
       colIdeas.forEach(idea => {
         const escapedText = idea.text.replace(/"/g, '""');
-        const author = room.anonymizeAuthors ? 'Anônimo' : idea.authorName;
+        const author = room.anonymizeAuthors ? t('anonymousAuthor') : idea.authorName;
         csvContent += `"${col.title}","${author}","${escapedText}",${idea.votes}\n`;
       });
     });
@@ -183,15 +185,15 @@ export default function ExportModal({ room, columns, ideas, onClose }: ExportMod
               <FileText className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-extrabold text-slate-800 text-sm md:text-base">Exportar Resultados</h3>
-              <p className="text-[11px] text-slate-500 font-medium">Faça o download do relatório completo da sessão de brainstorming.</p>
+              <h3 className="font-extrabold text-slate-800 text-sm md:text-base">{t('exportTitle')}</h3>
+              <p className="text-[11px] text-slate-500 font-medium">{t('exportSubtitle')}</p>
             </div>
           </div>
           <button
             id="btn_close_export_modal"
             onClick={onClose}
             className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
-            title="Fechar modal"
+            title="Fechar"
           >
             <X className="w-5 h-5" />
           </button>
@@ -202,14 +204,12 @@ export default function ExportModal({ room, columns, ideas, onClose }: ExportMod
           
           {/* Cover Section */}
           <div className="text-center pb-4 border-b border-slate-100">
-            <span className="text-xs font-bold font-mono tracking-widest text-indigo-600 uppercase">Relatório de Ideação</span>
+            <span className="text-xs font-bold font-mono tracking-widest text-indigo-600 uppercase">{t('exportTitle')}</span>
             <h2 className="text-xl font-extrabold text-slate-900 mt-1 font-display">{room.title}</h2>
             <div className="flex items-center justify-center gap-4 text-xs text-slate-500 mt-2 font-medium">
-              <span>Facilitador: <b>@{room.facilitatorName}</b></span>
+              <span>{t('facilitatorBadge')}: <b>@{room.facilitatorName}</b></span>
               <span>•</span>
               <span>PIN: <b>{room.pin}</b></span>
-              <span>•</span>
-              <span>Template: <b>{room.template === 'design-thinking' ? 'Design Thinking' : room.template === 'sticky-board' ? 'Quadro Livre' : 'Matriz de Priorização'}</b></span>
             </div>
           </div>
 
@@ -221,23 +221,17 @@ export default function ExportModal({ room, columns, ideas, onClose }: ExportMod
                 <div key={col.id} className="space-y-2">
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-l-2 border-indigo-500 pl-2">{col.title} ({colIdeas.length})</h4>
                   {colIdeas.length === 0 ? (
-                    <p className="text-xs text-slate-400 italic pl-3">Nenhum post-it adicionado nesta etapa.</p>
+                    <p className="text-xs text-slate-400 italic pl-3">{t('noPostItsInStage')}</p>
                   ) : (
                     <div className="space-y-2 pl-2">
                       {colIdeas.map((idea) => {
-                        const author = room.anonymizeAuthors ? 'Anônimo' : idea.authorName;
+                        const author = room.anonymizeAuthors ? t('anonymousAuthor') : idea.authorName;
                         return (
                           <div key={idea.id} className="p-3 bg-slate-50 border border-slate-100 rounded-lg flex items-start justify-between text-xs">
                             <div className="space-y-1">
                               <p className="font-semibold text-slate-700 leading-relaxed">{idea.text}</p>
                               <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium">
-                                <span>Por: <b>{author}</b></span>
-                                {Object.entries(idea.reactions).some(([_, count]) => count > 0) && (
-                                  <>
-                                    <span>•</span>
-                                    <span>Reações: {Object.entries(idea.reactions).map(([emoji, count]) => count > 0 ? `${emoji}${count} ` : '').join(' ')}</span>
-                                  </>
-                                )}
+                                <span>{t('byAuthor')}: <b>{author}</b></span>
                               </div>
                             </div>
                             <span className="text-[10px] bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded-full shrink-0">
@@ -262,7 +256,7 @@ export default function ExportModal({ room, columns, ideas, onClose }: ExportMod
             onClick={getCSVData}
             className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-xl transition-all flex items-center gap-2 cursor-pointer"
           >
-            <Download className="w-4 h-4" /> Download CSV
+            <Download className="w-4 h-4" /> {t('downloadCsv')}
           </button>
           
           <button
@@ -270,7 +264,7 @@ export default function ExportModal({ room, columns, ideas, onClose }: ExportMod
             onClick={handleDownloadPDF}
             className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-2 shadow-sm shadow-indigo-100 cursor-pointer"
           >
-            <File className="w-4 h-4" /> Download PDF
+            <File className="w-4 h-4" /> {t('downloadPdf')}
           </button>
 
           <button
@@ -278,7 +272,7 @@ export default function ExportModal({ room, columns, ideas, onClose }: ExportMod
             onClick={handlePrint}
             className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all flex items-center gap-2 cursor-pointer"
           >
-            <Printer className="w-4 h-4" /> Imprimir
+            <Printer className="w-4 h-4" /> {t('printBtn')}
           </button>
         </div>
 

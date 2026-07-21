@@ -2,6 +2,7 @@ import React from 'react';
 import { Idea, Participant, NoteColor, RoomStatus } from '../types';
 import { NOTE_COLORS } from '../data';
 import { Trash2, Edit2, ChevronLeft, ChevronRight, EyeOff } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 
 interface IdeaCardProps {
   idea: Idea;
@@ -32,6 +33,7 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({
   canMoveLeft,
   canMoveRight
 }) => {
+  const { t } = useLanguage();
   const [isEditing, setIsEditing] = React.useState(false);
   const [editText, setEditText] = React.useState(idea.text);
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
@@ -54,8 +56,8 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({
   };
 
   const displayAuthorName = anonymizeAuthors 
-    ? (isAuthor ? 'Você (Anônimo)' : 'Participante Anônimo') 
-    : (isAuthor ? 'Você' : idea.authorName);
+    ? (isAuthor ? `${t('youBadge')} (${t('anonymousAuthor')})` : t('anonymousAuthor')) 
+    : (isAuthor ? t('youBadge') : idea.authorName);
     
   const displayAuthorAvatar = anonymizeAuthors ? '👤' : idea.authorAvatar;
 
@@ -71,7 +73,7 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({
             id={`btn_edit_idea_${idea.id}`}
             onClick={() => setIsEditing(true)}
             className="p-1 hover:bg-black/10 rounded transition-all text-slate-600 hover:text-slate-900 cursor-pointer"
-            title="Editar Nota"
+            title={t('saveBtn')}
           >
             <Edit2 className="w-3 h-3" />
           </button>
@@ -79,7 +81,7 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({
             id={`btn_delete_idea_${idea.id}`}
             onClick={() => setShowDeleteConfirm(true)}
             className="p-1 hover:bg-black/10 rounded transition-all text-rose-600 hover:text-rose-900 cursor-pointer"
-            title="Excluir Nota"
+            title={t('deleteBtn')}
           >
             <Trash2 className="w-3 h-3" />
           </button>
@@ -106,13 +108,13 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({
                 onClick={handleCancelEdit}
                 className="px-2 py-0.5 bg-slate-200 hover:bg-slate-300 text-[10px] font-bold rounded text-slate-700 cursor-pointer"
               >
-                Cancelar
+                {t('cancelBtn')}
               </button>
               <button
                 type="submit"
                 className="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-[10px] font-bold rounded text-white cursor-pointer"
               >
-                Salvar
+                {t('saveBtn')}
               </button>
             </div>
           </form>
@@ -138,6 +140,7 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({
           </div>
         )}
       </div>
+
 
       {/* Card Footer: Metadata and Interactivity */}
       <div className="border-t border-black/5 pt-2 flex flex-col gap-2 mt-auto select-none">
