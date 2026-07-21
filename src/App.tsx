@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Room, Idea, Participant, RoomColumn, NoteColor, RoomTemplate } from './types';
-import { AVATARS, NOTE_COLORS, TEMPLATE_COLUMNS } from './data';
+import { AVATARS, NOTE_COLORS, TEMPLATE_COLUMNS, KNOWN_COLUMN_ORDER } from './data';
 
 import Onboarding from './components/Onboarding';
 import Header from './components/Header';
@@ -272,6 +272,16 @@ export default function App() {
       unsubParts();
     };
   }, [room?.pin]);
+
+  // Sorted columns guaranteed order (Empatia, Definição, Ideação, Prototipagem, Testes)
+  const sortedColumns = useMemo(() => {
+    return [...columns].sort((a, b) => {
+      const orderA = a.order ?? KNOWN_COLUMN_ORDER[a.id] ?? (parseInt(a.title) || 99);
+      const orderB = b.order ?? KNOWN_COLUMN_ORDER[b.id] ?? (parseInt(b.title) || 99);
+      if (orderA !== orderB) return orderA - orderB;
+      return a.title.localeCompare(b.title);
+    });
+  }, [columns]);
 
   // Toast notifier helper
   const showToast = (message: string) => {
@@ -711,20 +721,20 @@ export default function App() {
 
   // DYNAMIC ACTION: Move Note across columns
   const handleMoveColumn = async (ideaId: string, direction: 'left' | 'right') => {
-    if (!room || columns.length === 0) return;
+    if (!room || sortedColumns.length === 0) return;
 
     const savedIdeas: Idea[] = JSON.parse(localStorage.getItem(`ideas_${room.pin}`) || '[]');
     const idea = savedIdeas.find(i => i.id === ideaId);
     if (!idea) return;
 
-    const currentIdx = columns.findIndex(c => c.id === idea.columnId);
+    const currentIdx = sortedColumns.findIndex(c => c.id === idea.columnId);
     let targetIdx = currentIdx;
 
     if (direction === 'left' && currentIdx > 0) targetIdx--;
-    if (direction === 'right' && currentIdx < columns.length - 1) targetIdx++;
+    if (direction === 'right' && currentIdx < sortedColumns.length - 1) targetIdx++;
 
     if (targetIdx !== currentIdx) {
-      const targetColumn = columns[targetIdx];
+      const targetColumn = sortedColumns[targetIdx];
       if (targetColumn.locked) {
         alert('A coluna de destino está travada!');
         return;
@@ -954,7 +964,7 @@ export default function App() {
           )}
 
           <div className="flex gap-6 h-full overflow-x-auto overflow-y-hidden pb-4 select-none">
-            {columns.map((col, colIdx) => {
+            {sortedColumns.map((col, colIdx) => {
               const colIdeas = ideas.filter(i => i.columnId === col.id);
               return (
                 <section

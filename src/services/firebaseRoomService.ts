@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db, ensureAuth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Room, Idea, Participant, RoomColumn } from '../types';
+import { KNOWN_COLUMN_ORDER } from '../data';
 
 // Create a new room with columns and initial facilitator in Firestore
 export async function createRoomInFirestore(
@@ -121,6 +122,12 @@ export function subscribeToColumns(
       const cols: RoomColumn[] = [];
       snapshot.forEach((colDoc) => {
         cols.push(colDoc.data() as RoomColumn);
+      });
+      cols.sort((a, b) => {
+        const orderA = a.order ?? KNOWN_COLUMN_ORDER[a.id] ?? (parseInt(a.title) || 99);
+        const orderB = b.order ?? KNOWN_COLUMN_ORDER[b.id] ?? (parseInt(b.title) || 99);
+        if (orderA !== orderB) return orderA - orderB;
+        return a.title.localeCompare(b.title);
       });
       onColumnsUpdate(cols);
     },

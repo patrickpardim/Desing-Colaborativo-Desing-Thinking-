@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Room, RoomColumn, RoomTemplate, Participant } from '../types';
 import { Settings, Shield, Lock, Unlock, Eye, EyeOff, Check, Copy } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { KNOWN_COLUMN_ORDER } from '../data';
 
 interface FacilitatorControlsProps {
   room: Room;
@@ -107,7 +108,12 @@ export default function FacilitatorControls({
         <div className="space-y-2.5">
           <label className="text-xs font-extrabold text-slate-700 uppercase block">{t('lockColumns')}</label>
           <div id="column_locking_list" className="space-y-2">
-            {columns.map((col) => (
+            {[...columns].sort((a, b) => {
+              const orderA = a.order ?? KNOWN_COLUMN_ORDER[a.id] ?? (parseInt(a.title) || 99);
+              const orderB = b.order ?? KNOWN_COLUMN_ORDER[b.id] ?? (parseInt(b.title) || 99);
+              if (orderA !== orderB) return orderA - orderB;
+              return a.title.localeCompare(b.title);
+            }).map((col) => (
               <div key={col.id} className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-100 text-xs shadow-3xs">
                 <span className="font-bold text-slate-700 truncate max-w-[120px]">{col.title}</span>
                 <button

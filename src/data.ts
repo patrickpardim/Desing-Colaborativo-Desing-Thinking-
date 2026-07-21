@@ -23,17 +23,29 @@ export const NOTE_COLORS: { value: NoteColor; bg: string; border: string; text: 
   { value: 'purple', bg: 'bg-[#F3E5F5]', border: 'border-purple-400', text: 'text-purple-900', header: 'bg-purple-200' },
 ];
 
+export const KNOWN_COLUMN_ORDER: Record<string, number> = {
+  'empatia': 1,
+  'definicao': 2,
+  'ideacao': 3,
+  'prototipagem': 4,
+  'teste': 5,
+  'testes': 5,
+  'todo': 1,
+  'inprogress': 2,
+  'done': 3,
+};
+
 export const TEMPLATE_COLUMNS: Record<RoomTemplate, RoomColumn[]> = {
   'design-thinking': [
-    { id: 'empatia', title: '1. Empatia', color: 'border-indigo-500', locked: false },
-    { id: 'definicao', title: '2. Definição', color: 'border-sky-500', locked: false },
-    { id: 'ideacao', title: '3. Ideação', color: 'border-pink-500', locked: true },
-    { id: 'prototipagem', title: '4. Prototipagem', color: 'border-amber-500', locked: true },
-    { id: 'teste', title: '5. Teste', color: 'border-emerald-500', locked: true },
+    { id: 'empatia', title: '1. Empatia', color: 'border-indigo-500', locked: false, order: 1 },
+    { id: 'definicao', title: '2. Definição', color: 'border-sky-500', locked: false, order: 2 },
+    { id: 'ideacao', title: '3. Ideação', color: 'border-pink-500', locked: true, order: 3 },
+    { id: 'prototipagem', title: '4. Prototipagem', color: 'border-amber-500', locked: true, order: 4 },
+    { id: 'teste', title: '5. Testes', color: 'border-emerald-500', locked: true, order: 5 },
   ],
   'sticky-board': [
-    { id: 'todo', title: 'A Fazer', color: 'border-blue-400', locked: false },
-    { id: 'inprogress', title: 'Em Progresso', color: 'border-amber-400', locked: false },
-    { id: 'done', title: 'Concluído', color: 'border-emerald-400', locked: false },
+    { id: 'todo', title: 'A Fazer', color: 'border-blue-400', locked: false, order: 1 },
+    { id: 'inprogress', title: 'Em Progresso', color: 'border-amber-400', locked: false, order: 2 },
+    { id: 'done', title: 'Concluído', color: 'border-emerald-400', locked: false, order: 3 },
   ],
 };

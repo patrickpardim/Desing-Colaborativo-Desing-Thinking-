@@ -3,6 +3,7 @@ import { Room, Idea, RoomColumn } from '../types';
 import { Download, X, Printer, FileText, File } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { useLanguage } from '../context/LanguageContext';
+import { KNOWN_COLUMN_ORDER } from '../data';
 
 interface ExportModalProps {
   room: Room;
@@ -83,7 +84,14 @@ export default function ExportModal({ room, columns, ideas, onClose }: ExportMod
       y += 8;
 
       // Iterate over columns
-      columns.forEach(col => {
+      const sortedCols = [...columns].sort((a, b) => {
+        const orderA = a.order ?? KNOWN_COLUMN_ORDER[a.id] ?? (parseInt(a.title) || 99);
+        const orderB = b.order ?? KNOWN_COLUMN_ORDER[b.id] ?? (parseInt(b.title) || 99);
+        if (orderA !== orderB) return orderA - orderB;
+        return a.title.localeCompare(b.title);
+      });
+
+      sortedCols.forEach(col => {
         const colIdeas = ideas.filter(i => i.columnId === col.id);
         
         // Column Header Section

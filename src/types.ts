@@ -32,6 +32,7 @@ export interface RoomColumn {
   title: string;
   color: string; // border/accent color class
   locked: boolean;
+  order?: number;
 }
 
 export interface Room {
