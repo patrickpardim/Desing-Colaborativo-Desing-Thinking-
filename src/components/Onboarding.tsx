@@ -78,8 +78,16 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
         }
         setAuthStep('room');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Google Sign-In error:", err);
+      const code = err?.code || '';
+      if (code === 'auth/unauthorized-domain') {
+        alert("🌐 Domínio não autorizado no Firebase!\n\nPara permitir o login Google no Netlify:\n1. Acesse o Console do Firebase (Authentication > Settings > Authorized Domains)\n2. Adicione o seu domínio do Netlify (ex: seu-app.netlify.app).\n\nVocê também pode continuar entrando como convidado no botão abaixo.");
+      } else if (code === 'auth/admin-restricted-operation') {
+        alert("🔒 Operação restrita no Firebase!\n\nVerifique se o login do Google e o login Anônimo estão ativados no Firebase Console em Authentication > Sign-in Method.");
+      } else if (code !== 'auth/popup-closed-by-user') {
+        alert("Não foi possível conectar com o Google: " + (err?.message || "Erro desconhecido"));
+      }
     } finally {
       setIsGoogleLoading(false);
     }
