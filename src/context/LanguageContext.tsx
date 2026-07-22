@@ -211,7 +211,14 @@ const translations: Record<Language, Record<string, string>> = {
     googleConnected: 'Conectado como {name}',
     googleGuestDivider: 'ou entrar como convidado',
     googleLogout: 'Sair do Google',
-    googleSignInTip: '🔑 Login Google: Permite reentrar na sala de qualquer dispositivo sem duplicar o usuário e mantém seu histórico de post-its.'
+    googleSignInTip: '🔑 Login Google: Permite reentrar na sala de qualquer dispositivo sem duplicar o usuário e mantém seu histórico de post-its.',
+    ssoWelcomeTitle: 'Identificação e Acesso',
+    ssoWelcomeSub: 'Faça login com o Google para synchar sua sessão em qualquer dispositivo ou entre como convidado.',
+    continueAsGuest: 'Continuar como Convidado',
+    changeAccount: 'Trocar Conta / Perfil',
+    authenticatedAs: 'Conectado como:',
+    step1Title: '1. Identificação',
+    step2Title: '2. Entrar ou Criar Sala'
   },
   es: {
     // App & Header
@@ -415,7 +422,14 @@ const translations: Record<Language, Record<string, string>> = {
     googleConnected: 'Conectado como {name}',
     googleGuestDivider: 'o entrar como invitado',
     googleLogout: 'Cerrar sesión de Google',
-    googleSignInTip: '🔑 Login Google: Permite volver a entrar a la sala desde cualquier dispositivo sin duplicar usuario.'
+    googleSignInTip: '🔑 Login Google: Permite volver a entrar a la sala desde cualquier dispositivo sin duplicar usuario.',
+    ssoWelcomeTitle: 'Identificación y Acceso',
+    ssoWelcomeSub: 'Inicia sesión con Google para sincronizar tu sesión en cualquier dispositivo o entra como invitado.',
+    continueAsGuest: 'Continuar como Invitado',
+    changeAccount: 'Cambiar Cuenta / Perfil',
+    authenticatedAs: 'Conectado como:',
+    step1Title: '1. Identificación',
+    step2Title: '2. Entrar o Crear Sala'
   }
 };
 
