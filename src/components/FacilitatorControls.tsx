@@ -131,7 +131,7 @@ export default function FacilitatorControls({
               <div key={col.id} className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-100 text-xs shadow-3xs relative">
                 <div className="flex items-center gap-1 min-w-0">
                   <span className="font-bold text-slate-700 truncate max-w-[120px]">{col.title}</span>
-                  <ColumnInfoPopover columnId={col.id} columnTitle={col.title} />
+                  <ColumnInfoPopover columnId={col.id} columnTitle={col.title} align="right" />
                 </div>
                 <button
                   id={`btn_toggle_lock_${col.id}`}

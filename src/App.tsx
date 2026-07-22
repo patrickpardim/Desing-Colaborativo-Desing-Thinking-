@@ -154,6 +154,8 @@ export default function App() {
 
   // Local BroadcastChannel for real-time synchronization
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
+  const isDeletingRoomRef = useRef(false);
+  const hasShownTerminatedAlertRef = useRef(false);
 
   // 1. Initial Mount: Check URL query param
   useEffect(() => {
@@ -177,7 +179,10 @@ export default function App() {
 
       // Facilitator closed the room permanently
       if (data.type === 'ROOM_TERMINATED') {
-        alert('A sala foi encerrada permanentemente pelo facilitador/proprietário.');
+        if (!isDeletingRoomRef.current && !hasShownTerminatedAlertRef.current) {
+          hasShownTerminatedAlertRef.current = true;
+          alert('A sala foi excluída pelo facilitador.');
+        }
         setRoom(null);
         setIdeas([]);
         setParticipants([]);
@@ -258,6 +263,10 @@ export default function App() {
     // Subscribe to Room changes
     const unsubRoom = subscribeToRoom(currentPin, (updatedRoom) => {
       if (!updatedRoom) {
+        if (!isDeletingRoomRef.current && !hasShownTerminatedAlertRef.current) {
+          hasShownTerminatedAlertRef.current = true;
+          alert('A sala foi excluída pelo facilitador.');
+        }
         setRoom(null);
         setIdeas([]);
         setParticipants([]);
@@ -343,6 +352,8 @@ export default function App() {
   // ONBOARDING ACTION: Join Existing Room
   const handleJoinRoom = async (pin: string, name: string, avatar: string, userIdInput?: string) => {
     triggerSound('success');
+    isDeletingRoomRef.current = false;
+    hasShownTerminatedAlertRef.current = false;
 
     // Retrieve room from localStorage as fallback initial state
     let roomObj: Room | null = null;
@@ -445,6 +456,8 @@ export default function App() {
   // ONBOARDING ACTION: Create New Room
   const handleCreateRoom = async (title: string, facilitatorName: string, template: RoomTemplate, facilitatorUserIdInput?: string) => {
     triggerSound('success');
+    isDeletingRoomRef.current = false;
+    hasShownTerminatedAlertRef.current = false;
 
     // Generate random unique 6-digit PIN code
     const pin = Math.floor(100000 + Math.random() * 900000).toString();
@@ -539,6 +552,8 @@ export default function App() {
     triggerSound('success');
     if (!room) return;
     const pin = room.pin;
+
+    isDeletingRoomRef.current = true;
 
     // Remove all keys related to this room from localStorage
     localStorage.removeItem(`room_${pin}`);
@@ -1088,7 +1103,11 @@ export default function App() {
                   <div className={`h-11 border-b-2 ${col.color || 'border-slate-300'} flex items-center justify-between px-1 relative`}>
                     <div className="flex items-center gap-1.5">
                       <h3 className="font-bold text-slate-700 text-sm md:text-base tracking-tight font-display">{col.title}</h3>
-                      <ColumnInfoPopover columnId={col.id} columnTitle={col.title} />
+                      <ColumnInfoPopover
+                        columnId={col.id}
+                        columnTitle={col.title}
+                        align={colIdx >= Math.floor(sortedColumns.length / 2) ? 'right' : 'left'}
+                      />
                       {col.locked && <span className="text-[10px] bg-rose-50 text-rose-500 font-extrabold px-1.5 py-0.5 rounded-full border border-rose-100 ml-1">🔒 Travada</span>}
                     </div>
                     <span id={`column_count_${col.id}`} className="text-xs font-bold text-slate-500 bg-slate-200/50 border border-slate-200 px-2.5 py-0.5 rounded-full">
