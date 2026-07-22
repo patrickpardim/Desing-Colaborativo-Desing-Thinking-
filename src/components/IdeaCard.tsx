@@ -68,14 +68,14 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({
     >
       {/* Edit/Delete Controls Top-Right */}
       {canModify && !isEditing && (
-        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute top-2 right-2 flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
           <button
             id={`btn_edit_idea_${idea.id}`}
             onClick={() => setIsEditing(true)}
             className="p-1 hover:bg-black/10 rounded transition-all text-slate-600 hover:text-slate-900 cursor-pointer"
             title={t('saveBtn')}
           >
-            <Edit2 className="w-3 h-3" />
+            <Edit2 className="w-3.5 h-3.5" />
           </button>
           <button
             id={`btn_delete_idea_${idea.id}`}
@@ -83,7 +83,7 @@ export const IdeaCard: React.FC<IdeaCardProps> = ({
             className="p-1 hover:bg-black/10 rounded transition-all text-rose-600 hover:text-rose-900 cursor-pointer"
             title={t('deleteBtn')}
           >
-            <Trash2 className="w-3 h-3" />
+            <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
       )}

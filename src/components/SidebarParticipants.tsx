@@ -1,24 +1,26 @@
 import React from 'react';
 import { Participant, Room } from '../types';
-import { Users } from 'lucide-react';
+import { Users, X } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
 interface SidebarParticipantsProps {
   room: Room;
   participants: Participant[];
   currentUser: Participant;
+  onCloseMobile?: () => void;
 }
 
 export default function SidebarParticipants({
   room,
   participants,
-  currentUser
+  currentUser,
+  onCloseMobile
 }: SidebarParticipantsProps) {
   const { t } = useLanguage();
   const onlineParticipants = participants.filter(p => p.online);
 
   return (
-    <aside id="participants_sidebar" className="w-52 bg-white border-r border-slate-200 p-4 flex flex-col justify-between shrink-0 h-full select-none">
+    <aside id="participants_sidebar" className="w-full lg:w-52 bg-white border-r border-slate-200 p-4 flex flex-col justify-between shrink-0 h-full select-none">
       
       <div className="space-y-5 flex-1 overflow-y-auto">
         
@@ -26,17 +28,28 @@ export default function SidebarParticipants({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-[10px] uppercase tracking-wider font-bold text-slate-400 flex items-center gap-1">
-              <Users className="w-3 h-3" /> {t('participantsTitle')} ({participants.length}/50)
+              <Users className="w-3.5 h-3.5 text-indigo-600" /> {t('participantsTitle')} ({participants.length}/50)
             </h3>
-            {participants.length >= 50 && (
-              <span className="text-[9px] font-extrabold bg-rose-50 text-rose-600 border border-rose-200 px-1.5 py-0.5 rounded">
-                Cheio
-              </span>
-            )}
+            <div className="flex items-center gap-1">
+              {participants.length >= 50 && (
+                <span className="text-[9px] font-extrabold bg-rose-50 text-rose-600 border border-rose-200 px-1.5 py-0.5 rounded">
+                  Cheio
+                </span>
+              )}
+              {onCloseMobile && (
+                <button
+                  onClick={onCloseMobile}
+                  className="lg:hidden p-1 text-slate-400 hover:text-slate-600 rounded"
+                  title="Fechar"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Participants List */}
-          <div id="participants_list" className="flex flex-col gap-2.5 max-h-[220px] overflow-y-auto pr-1">
+          <div id="participants_list" className="flex flex-col gap-2.5 max-h-[350px] lg:max-h-[220px] overflow-y-auto pr-1">
             {onlineParticipants.map((p) => {
               const isSelf = p.id === currentUser.id;
               return (
@@ -77,7 +90,7 @@ export default function SidebarParticipants({
         </div>
 
       </div>
-
     </aside>
   );
 }
+

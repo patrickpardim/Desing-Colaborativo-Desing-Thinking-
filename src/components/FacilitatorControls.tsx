@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Room, RoomColumn, RoomTemplate, Participant } from '../types';
-import { Settings, Shield, Lock, Unlock, Eye, EyeOff, Check, Copy } from 'lucide-react';
+import { Settings, Shield, Lock, Unlock, Eye, EyeOff, Check, Copy, X } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { KNOWN_COLUMN_ORDER } from '../data';
 import ColumnInfoPopover from './ColumnInfoPopover';
@@ -13,6 +13,7 @@ interface FacilitatorControlsProps {
   onUpdateColumnLock: (columnId: string, locked: boolean) => void;
   onRevealAllIdeas: () => void;
   onClearVotes: () => void;
+  onCloseMobile?: () => void;
 }
 
 export default function FacilitatorControls({
@@ -22,7 +23,8 @@ export default function FacilitatorControls({
   onUpdateRoom,
   onUpdateColumnLock,
   onRevealAllIdeas,
-  onClearVotes
+  onClearVotes,
+  onCloseMobile
 }: FacilitatorControlsProps) {
   const { t } = useLanguage();
   const [copiedLink, setCopiedLink] = React.useState(false);
@@ -40,15 +42,26 @@ export default function FacilitatorControls({
   };
 
   return (
-    <aside id="facilitator_controls_sidebar" className="w-64 bg-slate-50 border-l border-slate-200 p-5 flex flex-col justify-between shrink-0 h-full select-none overflow-y-auto">
+    <aside id="facilitator_controls_sidebar" className="w-full lg:w-64 bg-slate-50 border-l border-slate-200 p-5 flex flex-col justify-between shrink-0 h-full select-none overflow-y-auto">
       
       <div className="space-y-6">
         {/* Sidebar Header */}
-        <div className="border-b border-slate-200 pb-3">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-            <Shield className="w-3.5 h-3.5 text-indigo-600" /> {t('controlPanelTitle')}
-          </h3>
-          <p className="text-[10px] text-slate-500 mt-1">{t('controlPanelSubtitle')}</p>
+        <div className="border-b border-slate-200 pb-3 flex items-center justify-between">
+          <div>
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+              <Shield className="w-3.5 h-3.5 text-indigo-600" /> {t('controlPanelTitle')}
+            </h3>
+            <p className="text-[10px] text-slate-500 mt-1">{t('controlPanelSubtitle')}</p>
+          </div>
+          {onCloseMobile && (
+            <button
+              onClick={onCloseMobile}
+              className="lg:hidden p-1 text-slate-400 hover:text-slate-600 rounded"
+              title="Fechar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         {/* Phase/Status selector */}

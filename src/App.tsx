@@ -139,6 +139,19 @@ export default function App() {
   const [newIdeaColor, setNewIdeaColor] = useState<NoteColor>('yellow');
   const [newIdeaColumn, setNewIdeaColumn] = useState('');
 
+  // Mobile Drawers & Navigation States
+  const [isParticipantsOpenMobile, setIsParticipantsOpenMobile] = useState(false);
+  const [isFacilitatorOpenMobile, setIsFacilitatorOpenMobile] = useState(false);
+  const [activeMobileTab, setActiveMobileTab] = useState<string>('');
+
+  const handleScrollToColumn = (colId: string) => {
+    setActiveMobileTab(colId);
+    const colElem = document.getElementById(`column_${colId}`);
+    if (colElem) {
+      colElem.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  };
+
   // Local BroadcastChannel for real-time synchronization
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
 
@@ -214,14 +227,25 @@ export default function App() {
     channel.addEventListener('message', handleBroadcast);
 
     // Alert other tabs that we are online / joined
-    channel.postMessage({
-      type: 'PARTICIPANT_JOINED',
-      senderId: tabId.current
-    });
+    try {
+      channel.postMessage({
+        type: 'PARTICIPANT_JOINED',
+        senderId: tabId.current
+      });
+    } catch (err) {
+      console.warn('BroadcastChannel postMessage failed:', err);
+    }
 
     return () => {
       channel.removeEventListener('message', handleBroadcast);
-      channel.close();
+      if (broadcastChannelRef.current === channel) {
+        broadcastChannelRef.current = null;
+      }
+      try {
+        channel.close();
+      } catch (err) {
+        // channel already closed or cleanup error
+      }
     };
   }, [room?.pin, soundEnabled]);
 
@@ -304,11 +328,15 @@ export default function App() {
   // Helper: Trigger broad state reload alert
   const broadcastChange = (type: string, payload?: any) => {
     if (broadcastChannelRef.current) {
-      broadcastChannelRef.current.postMessage({
-        type,
-        payload,
-        senderId: tabId.current
-      });
+      try {
+        broadcastChannelRef.current.postMessage({
+          type,
+          payload,
+          senderId: tabId.current
+        });
+      } catch (err) {
+        console.warn('BroadcastChannel postMessage failed:', err);
+      }
     }
   };
 
@@ -954,46 +982,51 @@ export default function App() {
       <Header
         room={room}
         currentUser={currentUser}
+        participantCount={participants.filter(p => p.online).length}
         onUpdateRoom={handleUpdateRoom}
         onLeaveRoom={handleLeaveRoom}
         onDeleteRoom={handleDeleteRoomByFacilitator}
         onOpenExport={() => setIsExportOpen(true)}
+        onToggleParticipantsMobile={() => setIsParticipantsOpenMobile(!isParticipantsOpenMobile)}
+        onToggleFacilitatorMobile={() => setIsFacilitatorOpenMobile(!isFacilitatorOpenMobile)}
       />
 
       {/* 2. Main Content Area Split Panel */}
       <div className="flex flex-1 overflow-hidden relative">
         
-        {/* Left Sidebar: Live Participants Roster */}
-        <SidebarParticipants
-          room={room}
-          participants={participants}
-          currentUser={currentUser}
-        />
+        {/* Left Sidebar: Live Participants Roster (Desktop) */}
+        <div className="hidden lg:block h-full">
+          <SidebarParticipants
+            room={room}
+            participants={participants}
+            currentUser={currentUser}
+          />
+        </div>
 
         {/* Central Interative Board Canvas */}
-        <main className="flex-1 p-6 overflow-x-auto overflow-y-hidden flex flex-col justify-between">
+        <main className="flex-1 p-3 sm:p-6 overflow-x-auto overflow-y-hidden flex flex-col justify-between">
           
           {/* Status Header Banner */}
           {room.status === 'waiting' && (
-            <div id="room_status_banner_waiting" className="mb-4 bg-indigo-50/80 border border-indigo-100 rounded-xl px-4 py-3 flex items-center justify-between shadow-3xs animate-in slide-in-from-top-2 duration-200 shrink-0">
-              <div className="flex items-center gap-2.5">
-                <span className="text-xl animate-bounce">⏳</span>
+            <div id="room_status_banner_waiting" className="mb-3 sm:mb-4 bg-indigo-50/80 border border-indigo-100 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 flex items-center justify-between shadow-3xs animate-in slide-in-from-top-2 duration-200 shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="text-lg sm:text-xl animate-bounce">⏳</span>
                 <div>
                   <p className="text-xs font-extrabold text-indigo-900">Aguardando Início da Dinâmica</p>
-                  <p className="text-[10px] text-indigo-700 font-medium">O facilitador {room.facilitatorName} iniciará a dinâmica em breve. Prepare suas ideias!</p>
+                  <p className="text-[10px] text-indigo-700 font-medium">O facilitador {room.facilitatorName} iniciará a dinâmica em breve.</p>
                 </div>
               </div>
-              <span className="text-[9px] bg-indigo-200/60 text-indigo-800 font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">Aguarde...</span>
+              <span className="text-[9px] bg-indigo-200/60 text-indigo-800 font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">Aguarde</span>
             </div>
           )}
 
           {room.status === 'voting' && (
-            <div id="room_status_banner_voting" className="mb-4 bg-amber-50/80 border border-amber-100 rounded-xl px-4 py-3 flex items-center justify-between shadow-3xs animate-in slide-in-from-top-2 duration-200 shrink-0">
-              <div className="flex items-center gap-2.5">
-                <span className="text-xl">🗳️</span>
+            <div id="room_status_banner_voting" className="mb-3 sm:mb-4 bg-amber-50/80 border border-amber-100 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 flex items-center justify-between shadow-3xs animate-in slide-in-from-top-2 duration-200 shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="text-lg sm:text-xl">🗳️</span>
                 <div>
                   <p className="text-xs font-extrabold text-amber-950">Votação em Aberto!</p>
-                  <p className="text-[10px] text-amber-800 font-medium">Use os botões 👍 e 👎 nos post-its para distribuir seus votos (limite: {room.maxVotesPerPerson} votos).</p>
+                  <p className="text-[10px] text-amber-800 font-medium">Use 👍 e 👎 nos post-its para distribuir seus votos (limite: {room.maxVotesPerPerson}).</p>
                 </div>
               </div>
               <span className="text-[9px] bg-amber-200/60 text-amber-900 font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">Votos Liberados</span>
@@ -1001,26 +1034,53 @@ export default function App() {
           )}
 
           {room.status === 'locked' && (
-            <div id="room_status_banner_locked" className="mb-4 bg-rose-50/80 border border-rose-100 rounded-xl px-4 py-3 flex items-center justify-between shadow-3xs animate-in slide-in-from-top-2 duration-200 shrink-0">
-              <div className="flex items-center gap-2.5">
-                <span className="text-xl">🔒</span>
+            <div id="room_status_banner_locked" className="mb-3 sm:mb-4 bg-rose-50/80 border border-rose-100 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 flex items-center justify-between shadow-3xs animate-in slide-in-from-top-2 duration-200 shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="text-lg sm:text-xl">🔒</span>
                 <div>
                   <p className="text-xs font-extrabold text-rose-950">Quadro de Leitura (Congelado)</p>
-                  <p className="text-[10px] text-rose-800 font-medium">A dinâmica foi finalizada pelo facilitador. Nenhuma alteração ou voto pode ser feito.</p>
+                  <p className="text-[10px] text-rose-800 font-medium">A dinâmica foi finalizada. Nenhuma alteração pode ser feita.</p>
                 </div>
               </div>
               <span className="text-[9px] bg-rose-200/60 text-rose-900 font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">Somente Leitura</span>
             </div>
           )}
 
-          <div className="flex gap-6 h-full overflow-x-auto overflow-y-hidden pb-4 select-none">
+          {/* Mobile Column Switcher Tab Bar */}
+          <div className="flex lg:hidden items-center gap-2 overflow-x-auto pb-2 mb-2 shrink-0 select-none">
+            {sortedColumns.map((col) => {
+              const isCurrent = activeMobileTab === col.id;
+              const colIdeasCount = ideas.filter(i => i.columnId === col.id).length;
+              return (
+                <button
+                  key={col.id}
+                  id={`btn_mobile_tab_${col.id}`}
+                  onClick={() => handleScrollToColumn(col.id)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold shrink-0 flex items-center gap-1.5 border transition-all cursor-pointer ${
+                    isCurrent
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <span>{col.title}</span>
+                  <span className={`px-1.5 py-0.2 text-[10px] rounded-full font-mono ${
+                    isCurrent ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {colIdeasCount}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex gap-4 sm:gap-6 h-full overflow-x-auto overflow-y-hidden pb-4 select-none snap-x snap-mandatory">
             {sortedColumns.map((col, colIdx) => {
               const colIdeas = ideas.filter(i => i.columnId === col.id);
               return (
                 <section
                   id={`column_${col.id}`}
                   key={col.id}
-                  className={`flex flex-col gap-4 bg-white/40 border border-slate-200/50 rounded-xl p-4 relative h-full w-[280px] sm:w-[320px] shrink-0 ${
+                  className={`flex flex-col gap-4 bg-white/40 border border-slate-200/50 rounded-xl p-3 sm:p-4 relative h-full w-[85vw] max-w-[320px] sm:w-[320px] shrink-0 snap-center ${
                     col.locked ? 'bg-slate-100/50 opacity-90' : ''
                   }`}
                 >
@@ -1095,7 +1155,8 @@ export default function App() {
           <div className="flex items-center justify-between pt-2 border-t border-slate-200/50 mt-1">
             <div className="flex items-center gap-2 text-xs text-slate-400">
               <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
-              <span>Canal de sincronização local ativo: <b>ideacao_room_{room.pin}</b></span>
+              <span className="hidden sm:inline">Canal de sincronização local ativo: <b>ideacao_room_{room.pin}</b></span>
+              <span className="sm:hidden font-mono text-[10px]">PIN: <b>{room.pin}</b></span>
             </div>
             
             <button
@@ -1107,12 +1168,12 @@ export default function App() {
               {soundEnabled ? (
                 <>
                   <Volume2 className="w-4 h-4 text-slate-600" />
-                  <span className="text-[10px] font-bold text-slate-600">Som Ativo</span>
+                  <span className="text-[10px] font-bold text-slate-600 hidden sm:inline">Som Ativo</span>
                 </>
               ) : (
                 <>
                   <VolumeX className="w-4 h-4 text-slate-400" />
-                  <span className="text-[10px] font-bold text-slate-400">Mudo</span>
+                  <span className="text-[10px] font-bold text-slate-400 hidden sm:inline">Mudo</span>
                 </>
               )}
             </button>
@@ -1120,20 +1181,62 @@ export default function App() {
 
         </main>
 
-        {/* Right Sidebar: Facilitator controls panel (Visible only if current user is Facilitator) */}
+        {/* Right Sidebar: Facilitator controls panel (Desktop) */}
         {currentUser.isFacilitator && (
-          <FacilitatorControls
-            room={room}
-            columns={columns}
-            participants={participants}
-            onUpdateRoom={handleUpdateRoom}
-            onUpdateColumnLock={handleUpdateColumnLock}
-            onRevealAllIdeas={handleRevealAllIdeas}
-            onClearVotes={handleClearVotes}
-          />
+          <div className="hidden lg:block h-full">
+            <FacilitatorControls
+              room={room}
+              columns={columns}
+              participants={participants}
+              onUpdateRoom={handleUpdateRoom}
+              onUpdateColumnLock={handleUpdateColumnLock}
+              onRevealAllIdeas={handleRevealAllIdeas}
+              onClearVotes={handleClearVotes}
+            />
+          </div>
         )}
 
       </div>
+
+      {/* Mobile Participants Slide-over Drawer */}
+      {isParticipantsOpenMobile && (
+        <div className="fixed inset-0 z-50 lg:hidden flex">
+          <div
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150"
+            onClick={() => setIsParticipantsOpenMobile(false)}
+          />
+          <div className="relative ml-0 w-80 max-w-[85vw] bg-white h-full shadow-2xl z-10 animate-in slide-in-from-left duration-200">
+            <SidebarParticipants
+              room={room}
+              participants={participants}
+              currentUser={currentUser}
+              onCloseMobile={() => setIsParticipantsOpenMobile(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Facilitator Controls Slide-over Drawer */}
+      {isFacilitatorOpenMobile && currentUser.isFacilitator && (
+        <div className="fixed inset-0 z-50 lg:hidden flex justify-end">
+          <div
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150"
+            onClick={() => setIsFacilitatorOpenMobile(false)}
+          />
+          <div className="relative mr-0 w-80 max-w-[85vw] bg-slate-50 h-full shadow-2xl z-10 animate-in slide-in-from-right duration-200">
+            <FacilitatorControls
+              room={room}
+              columns={columns}
+              participants={participants}
+              onUpdateRoom={handleUpdateRoom}
+              onUpdateColumnLock={handleUpdateColumnLock}
+              onRevealAllIdeas={handleRevealAllIdeas}
+              onClearVotes={handleClearVotes}
+              onCloseMobile={() => setIsFacilitatorOpenMobile(false)}
+            />
+          </div>
+        </div>
+      )}
 
       {/* 3. FLOAT FLOATING ACTION BUTTON (Quick Global post-it) */}
       {room.status === 'active' && (
