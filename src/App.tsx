@@ -312,14 +312,7 @@ export default function App() {
   };
 
   // ONBOARDING ACTION: Join Existing Room
-  const handleJoinRoom = async (
-    pin: string, 
-    name: string, 
-    avatar: string,
-    googleUid?: string,
-    email?: string,
-    photoURL?: string
-  ) => {
+  const handleJoinRoom = async (pin: string, name: string, avatar: string) => {
     triggerSound('success');
 
     // Retrieve room from localStorage as fallback initial state
@@ -336,6 +329,9 @@ export default function App() {
       participantsObj = JSON.parse(localStorage.getItem(`participants_${pin}`) || '[]');
     }
 
+    const isFacil = roomObj ? (name.trim().toLowerCase() === roomObj.facilitatorName.trim().toLowerCase()) : false;
+    const existingFacil = participantsObj.find(p => p.isFacilitator);
+
     // Fetch up-to-date participants snapshot from Firestore
     let fsParticipants: Participant[] = [];
     try {
@@ -348,25 +344,8 @@ export default function App() {
     const currentParticipantList = fsParticipants.length > 0 ? fsParticipants : participantsObj;
     const trimmedName = name.trim().toLowerCase();
 
-    // Check if the joining user is the facilitator
-    const isFacil = roomObj ? (
-      (googleUid && roomObj.facilitatorName && currentParticipantList.find(p => p.isFacilitator)?.googleUid === googleUid) ||
-      trimmedName === roomObj.facilitatorName.trim().toLowerCase()
-    ) : false;
-
-    // Find if user already exists in room by googleUid, email or name
-    let matchedParticipant: Participant | undefined = undefined;
-    if (googleUid) {
-      matchedParticipant = currentParticipantList.find(p => p.googleUid === googleUid);
-    }
-    if (!matchedParticipant && email) {
-      matchedParticipant = currentParticipantList.find(p => p.email?.toLowerCase() === email.toLowerCase());
-    }
-    if (!matchedParticipant) {
-      matchedParticipant = currentParticipantList.find(p => p.name.trim().toLowerCase() === trimmedName);
-    }
-
-    const isAlreadyMember = Boolean(matchedParticipant) || isFacil;
+    // Check if the user is ALREADY a registered participant in this room (or the facilitator re-joining)
+    const isAlreadyMember = currentParticipantList.some(p => p.name.trim().toLowerCase() === trimmedName) || isFacil;
 
     // CAPACITY CHECK: Max 50 people including teacher/facilitator
     const MAX_ROOM_CAPACITY = 50;
@@ -375,37 +354,14 @@ export default function App() {
       return;
     }
 
-    let newUser: Participant;
-    if (matchedParticipant) {
-      // Re-use existing participant profile, preserve votes, ID and facilitator role
-      newUser = {
-        ...matchedParticipant,
-        name: isFacil ? (roomObj?.facilitatorName || name) : name,
-        avatar: isFacil ? '👑' : (matchedParticipant.avatar || avatar),
-        online: true,
-        googleUid: googleUid || matchedParticipant.googleUid,
-        email: email || matchedParticipant.email,
-        photoURL: photoURL || matchedParticipant.photoURL
-      };
-    } else {
-      // Create new participant document
-      const existingFacil = currentParticipantList.find(p => p.isFacilitator);
-      const newId = googleUid 
-        ? (isFacil ? `facilitator_google_${googleUid}` : `user_google_${googleUid}`)
-        : (isFacil ? (existingFacil?.id || `facilitator_${Date.now()}`) : `user_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`);
-
-      newUser = {
-        id: newId,
-        name: isFacil ? (roomObj?.facilitatorName || name) : name,
-        avatar: isFacil ? '👑' : avatar,
-        isFacilitator: isFacil,
-        votesLeft: isFacil ? 0 : (roomObj ? roomObj.maxVotesPerPerson : 5),
-        online: true,
-        googleUid,
-        email,
-        photoURL
-      };
-    }
+    const newUser: Participant = {
+      id: isFacil ? (existingFacil?.id || `facilitator_${Date.now()}`) : `user_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      name: isFacil ? roomObj?.facilitatorName || name : name,
+      avatar: isFacil ? '👑' : avatar,
+      isFacilitator: isFacil,
+      votesLeft: isFacil ? 0 : (roomObj ? roomObj.maxVotesPerPerson : 5),
+      online: true
+    };
 
     // Try joining in Firestore
     try {
@@ -423,7 +379,7 @@ export default function App() {
     }
 
     const updatedParticipants = [
-      ...participantsObj.filter(p => p.id !== newUser.id && p.name.trim().toLowerCase() !== name.trim().toLowerCase()), 
+      ...participantsObj.filter(p => p.name.trim().toLowerCase() !== name.trim().toLowerCase()), 
       newUser
     ];
     
@@ -436,18 +392,11 @@ export default function App() {
     setCurrentUser(newUser);
 
     broadcastChange('STATE_CHANGED');
-    broadcastChange('TOAST_ALERT', `${newUser.avatar} ${newUser.name} entrou no quadro!`);
+    broadcastChange('TOAST_ALERT', `${avatar} ${name} entrou no quadro!`);
   };
 
   // ONBOARDING ACTION: Create New Room
-  const handleCreateRoom = async (
-    title: string, 
-    facilitatorName: string, 
-    template: RoomTemplate,
-    googleUid?: string,
-    email?: string,
-    photoURL?: string
-  ) => {
+  const handleCreateRoom = async (title: string, facilitatorName: string, template: RoomTemplate) => {
     triggerSound('success');
 
     // Generate random unique 6-digit PIN code
@@ -467,15 +416,12 @@ export default function App() {
     };
 
     const facilitatorUser: Participant = {
-      id: googleUid ? `facilitator_google_${googleUid}` : `facilitator_${Date.now()}`,
+      id: `facilitator_${Date.now()}`,
       name: facilitatorName,
       avatar: '👑',
       isFacilitator: true,
       votesLeft: 0, // Admin doesn't vote
-      online: true,
-      googleUid,
-      email,
-      photoURL
+      online: true
     };
 
     const columnsObj = TEMPLATE_COLUMNS[template];

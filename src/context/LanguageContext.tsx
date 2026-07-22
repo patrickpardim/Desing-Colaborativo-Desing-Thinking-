@@ -206,19 +206,7 @@ const translations: Record<Language, Record<string, string>> = {
     capacityLimitTitle: 'Chegou no limite de pessoas',
     capacityLimitSub: 'Esta sala atingiu a lotação máxima de 50 pessoas (incluindo o professor e facilitador). Não é possível entrar novos participantes no momento.',
     capacityLimitBadge: 'Lotação Máxima: 50 / 50 Pessoas',
-    capacityLimitOk: 'Entendido',
-    signInWithGoogle: 'Entrar com o Google',
-    googleConnected: 'Conectado como {name}',
-    googleGuestDivider: 'ou entrar como convidado',
-    googleLogout: 'Sair do Google',
-    googleSignInTip: '🔑 Login Google: Permite reentrar na sala de qualquer dispositivo sem duplicar o usuário e mantém seu histórico de post-its.',
-    ssoWelcomeTitle: 'Identificação e Acesso',
-    ssoWelcomeSub: 'Faça login com o Google para synchar sua sessão em qualquer dispositivo ou entre como convidado.',
-    continueAsGuest: 'Continuar como Convidado',
-    changeAccount: 'Trocar Conta / Perfil',
-    authenticatedAs: 'Conectado como:',
-    step1Title: '1. Identificação',
-    step2Title: '2. Entrar ou Criar Sala'
+    capacityLimitOk: 'Entendido'
   },
   es: {
     // App & Header
@@ -417,19 +405,7 @@ const translations: Record<Language, Record<string, string>> = {
     capacityLimitTitle: 'Llegó al límite de personas',
     capacityLimitSub: 'Esta sala ha alcanzado la capacidad máxima de 50 personas (incluyendo al profesor y facilitador). No es posible que se unan nuevos participantes en este momento.',
     capacityLimitBadge: 'Capacidad Máxima: 50 / 50 Personas',
-    capacityLimitOk: 'Entendido',
-    signInWithGoogle: 'Iniciar sesión con Google',
-    googleConnected: 'Conectado como {name}',
-    googleGuestDivider: 'o entrar como invitado',
-    googleLogout: 'Cerrar sesión de Google',
-    googleSignInTip: '🔑 Login Google: Permite volver a entrar a la sala desde cualquier dispositivo sin duplicar usuario.',
-    ssoWelcomeTitle: 'Identificación y Acceso',
-    ssoWelcomeSub: 'Inicia sesión con Google para sincronizar tu sesión en cualquier dispositivo o entra como invitado.',
-    continueAsGuest: 'Continuar como Invitado',
-    changeAccount: 'Cambiar Cuenta / Perfil',
-    authenticatedAs: 'Conectado como:',
-    step1Title: '1. Identificación',
-    step2Title: '2. Entrar o Crear Sala'
+    capacityLimitOk: 'Entendido'
   }
 };
 

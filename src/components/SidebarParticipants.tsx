@@ -51,13 +51,9 @@ export default function SidebarParticipants({
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="relative">
-                      {p.photoURL ? (
-                        <img src={p.photoURL} alt={p.name} className="w-8 h-8 rounded-full border border-slate-200 object-cover shrink-0" referrerPolicy="no-referrer" />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-sm shrink-0">
-                          {p.avatar}
-                        </div>
-                      )}
+                      <div className="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-sm">
+                        {p.avatar}
+                      </div>
                       <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white"></span>
                     </div>
                     <div className="min-w-0">
