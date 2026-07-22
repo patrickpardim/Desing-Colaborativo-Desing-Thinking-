@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { AVATARS } from '../data';
 import { RoomTemplate, Participant } from '../types';
-import { Sparkles, Users, Lock, ChevronRight, Play, ArrowRight, Video, Copy, Check, ExternalLink, Eye, Key } from 'lucide-react';
+import { Sparkles, Users, Lock, ChevronRight, Play, ArrowRight, Video, Copy, Check, ExternalLink, Eye, Key, LogOut } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useLanguage, LanguageSelector } from '../context/LanguageContext';
-
+import { signInWithGoogle, logoutUser, auth } from '../lib/firebase';
 import { fetchRoomsFromFirestore } from '../services/firebaseRoomService';
 
 interface OnboardingProps {
-  onJoinRoom: (pin: string, name: string, avatar: string) => void;
-  onCreateRoom: (title: string, facilitatorName: string, template: RoomTemplate) => void;
+  onJoinRoom: (pin: string, name: string, avatar: string, googleUid?: string, email?: string, photoURL?: string) => void;
+  onCreateRoom: (title: string, facilitatorName: string, template: RoomTemplate, googleUid?: string, email?: string, photoURL?: string) => void;
   prefilledPin?: string;
   onNavigateToAdmin?: () => void;
 }
@@ -36,6 +36,56 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
   const [facilitatorName, setFacilitatorName] = useState('');
   const [roomTitle, setRoomTitle] = useState('');
   const [roomTemplate, setRoomTemplate] = useState<RoomTemplate>('design-thinking');
+
+  // Google Auth states
+  const [googleProfile, setGoogleProfile] = useState<{ uid: string; email: string; displayName: string; photoURL: string } | null>(null);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  useEffect(() => {
+    // Check if user is already signed in with Google
+    const currentUser = auth.currentUser;
+    if (currentUser && !currentUser.isAnonymous) {
+      setGoogleProfile({
+        uid: currentUser.uid,
+        email: currentUser.email || '',
+        displayName: currentUser.displayName || '',
+        photoURL: currentUser.photoURL || ''
+      });
+      if (currentUser.displayName) {
+        setName(currentUser.displayName);
+        setFacilitatorName(currentUser.displayName);
+      }
+    }
+  }, []);
+
+  const handleGoogleSignIn = async () => {
+    setIsGoogleLoading(true);
+    try {
+      const user = await signInWithGoogle();
+      if (user) {
+        const profile = {
+          uid: user.uid,
+          email: user.email || '',
+          displayName: user.displayName || '',
+          photoURL: user.photoURL || ''
+        };
+        setGoogleProfile(profile);
+        if (user.displayName) {
+          setName(user.displayName);
+          setFacilitatorName(user.displayName);
+        }
+      }
+    } catch (err) {
+      console.error("Google Sign-In error:", err);
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
+  const handleGoogleLogout = async () => {
+    await logoutUser();
+    setGoogleProfile(null);
+  };
 
   useEffect(() => {
     const loadRooms = async () => {
@@ -114,7 +164,14 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
       return;
     }
     const cleanPin = pin.replace(/\s+/g, '');
-    onJoinRoom(cleanPin, name.trim(), selectedAvatar);
+    onJoinRoom(
+      cleanPin, 
+      name.trim(), 
+      selectedAvatar, 
+      googleProfile?.uid, 
+      googleProfile?.email, 
+      googleProfile?.photoURL
+    );
   };
 
   const handleCreateSubmit = (e: React.FormEvent) => {
@@ -127,7 +184,14 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
       alert(t('enterNameAlert'));
       return;
     }
-    onCreateRoom(roomTitle.trim(), facilitatorName.trim(), roomTemplate);
+    onCreateRoom(
+      roomTitle.trim(), 
+      facilitatorName.trim(), 
+      roomTemplate, 
+      googleProfile?.uid, 
+      googleProfile?.email, 
+      googleProfile?.photoURL
+    );
   };
 
   return (
@@ -214,7 +278,7 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
                   </button>
                 </form>
               ) : (
-                <form id="form_profile" onSubmit={handleJoinSubmit} className="space-y-6">
+                <form id="form_profile" onSubmit={handleJoinSubmit} className="space-y-5">
                   <div className="flex items-center justify-between">
                     <button
                       type="button"
@@ -228,6 +292,54 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
                     </span>
                   </div>
 
+                  {/* GOOGLE LOGIN INTEGRATION CARD */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-2.5">
+                    {googleProfile ? (
+                      <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {googleProfile.photoURL ? (
+                            <img src={googleProfile.photoURL} alt={googleProfile.displayName} className="w-8 h-8 rounded-full border border-slate-200 shrink-0" referrerPolicy="no-referrer" />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                              {googleProfile.displayName.charAt(0)}
+                            </div>
+                          )}
+                          <div className="text-left min-w-0">
+                            <p className="text-xs font-bold text-slate-800 truncate">{googleProfile.displayName}</p>
+                            <p className="text-[10px] text-slate-500 truncate">{googleProfile.email}</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleGoogleLogout}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
+                          title={t('googleLogout')}
+                        >
+                          <LogOut className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        id="btn_google_signin_join"
+                        type="button"
+                        onClick={handleGoogleSignIn}
+                        disabled={isGoogleLoading}
+                        className="w-full py-2.5 px-3 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold text-xs rounded-xl transition-all shadow-2xs flex items-center justify-center gap-2 cursor-pointer hover:shadow-xs active:scale-98"
+                      >
+                        <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                        </svg>
+                        {isGoogleLoading ? 'Conectando...' : t('signInWithGoogle')}
+                      </button>
+                    )}
+                    <p className="text-[10px] text-slate-500 leading-tight font-medium text-left">
+                      {t('googleSignInTip')}
+                    </p>
+                  </div>
+
                   <div className="space-y-2">
                     <label htmlFor="input_name" className="text-sm font-bold text-slate-700">{t('yourNameLabel')}</label>
                     <input
@@ -238,7 +350,6 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring focus:ring-indigo-100 outline-none text-slate-800 transition-all text-sm font-medium"
-                      autoFocus
                       required
                     />
                   </div>
@@ -286,7 +397,55 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
 
           {/* TAB 2: CREATE ROOM */}
           {activeTab === 'create' && (
-            <form id="form_create_room" onSubmit={handleCreateSubmit} className="space-y-5">
+            <form id="form_create_room" onSubmit={handleCreateSubmit} className="space-y-4">
+              {/* GOOGLE LOGIN INTEGRATION CARD FOR FACILITATOR */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-2.5">
+                {googleProfile ? (
+                  <div className="flex items-center justify-between bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {googleProfile.photoURL ? (
+                        <img src={googleProfile.photoURL} alt={googleProfile.displayName} className="w-8 h-8 rounded-full border border-slate-200 shrink-0" referrerPolicy="no-referrer" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                          {googleProfile.displayName.charAt(0)}
+                        </div>
+                      )}
+                      <div className="text-left min-w-0">
+                        <p className="text-xs font-bold text-slate-800 truncate">{googleProfile.displayName}</p>
+                        <p className="text-[10px] text-slate-500 truncate">{googleProfile.email}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleGoogleLogout}
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
+                      title={t('googleLogout')}
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    id="btn_google_signin_create"
+                    type="button"
+                    onClick={handleGoogleSignIn}
+                    disabled={isGoogleLoading}
+                    className="w-full py-2.5 px-3 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold text-xs rounded-xl transition-all shadow-2xs flex items-center justify-center gap-2 cursor-pointer hover:shadow-xs active:scale-98"
+                  >
+                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                    </svg>
+                    {isGoogleLoading ? 'Conectando...' : t('signInWithGoogle')}
+                  </button>
+                )}
+                <p className="text-[10px] text-slate-500 leading-tight font-medium text-left">
+                  {t('googleSignInTip')}
+                </p>
+              </div>
+
               <div className="space-y-2">
                 <label htmlFor="input_facilitator" className="text-sm font-bold text-slate-700">{t('facilitatorNameLabel')}</label>
                 <input

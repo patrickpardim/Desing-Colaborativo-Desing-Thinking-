@@ -182,6 +182,25 @@ export function subscribeToParticipants(
   );
 }
 
+// Fetch participants snapshot from Firestore
+export async function getParticipantsFromFirestore(pin: string): Promise<Participant[]> {
+  await ensureAuth();
+  const path = `rooms/${pin}/participants`;
+  try {
+    const snap = await getDocs(collection(db, 'rooms', pin, 'participants'));
+    const list: Participant[] = [];
+    snap.forEach((docSnap) => {
+      if (docSnap.exists()) {
+        list.push(docSnap.data() as Participant);
+      }
+    });
+    return list;
+  } catch (error) {
+    console.warn("Could not fetch participants from Firestore:", error);
+    return [];
+  }
+}
+
 // Update room settings or status
 export async function updateRoomInFirestore(
   pin: string,

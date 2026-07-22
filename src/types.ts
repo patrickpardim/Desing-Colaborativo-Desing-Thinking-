@@ -7,6 +7,9 @@ export interface Participant {
   isFacilitator: boolean;
   votesLeft: number;
   online: boolean;
+  googleUid?: string;
+  email?: string;
+  photoURL?: string;
 }
 
 export interface Idea {

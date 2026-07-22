@@ -638,7 +638,7 @@ export default function AdminConsole({ onBack }: AdminConsoleProps) {
                               {room.ideasCount}
                             </td>
                             <td className="py-3.5 px-5 text-center font-mono font-bold text-slate-700">
-                              {room.participantsCount}
+                              {room.participantsCount} / 50
                             </td>
                             <td className="py-3.5 px-5 text-right">
                               {confirmDeletePin === room.pin ? (

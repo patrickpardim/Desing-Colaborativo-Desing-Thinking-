@@ -26,8 +26,13 @@ export default function SidebarParticipants({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-[10px] uppercase tracking-wider font-bold text-slate-400 flex items-center gap-1">
-              <Users className="w-3 h-3" /> {t('participantsTitle')} ({onlineParticipants.length})
+              <Users className="w-3 h-3" /> {t('participantsTitle')} ({participants.length}/50)
             </h3>
+            {participants.length >= 50 && (
+              <span className="text-[9px] font-extrabold bg-rose-50 text-rose-600 border border-rose-200 px-1.5 py-0.5 rounded">
+                Cheio
+              </span>
+            )}
           </div>
 
           {/* Participants List */}
@@ -46,9 +51,13 @@ export default function SidebarParticipants({
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="relative">
-                      <div className="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-sm">
-                        {p.avatar}
-                      </div>
+                      {p.photoURL ? (
+                        <img src={p.photoURL} alt={p.name} className="w-8 h-8 rounded-full border border-slate-200 object-cover shrink-0" referrerPolicy="no-referrer" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-sm shrink-0">
+                          {p.avatar}
+                        </div>
+                      )}
                       <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white"></span>
                     </div>
                     <div className="min-w-0">

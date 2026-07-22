@@ -202,7 +202,16 @@ const translations: Record<Language, Record<string, string>> = {
     statusWaiting: 'Em Espera',
     statusActive: 'Ideação',
     statusVoting: 'Votação',
-    statusLocked: 'Bloqueado'
+    statusLocked: 'Bloqueado',
+    capacityLimitTitle: 'Chegou no limite de pessoas',
+    capacityLimitSub: 'Esta sala atingiu a lotação máxima de 50 pessoas (incluindo o professor e facilitador). Não é possível entrar novos participantes no momento.',
+    capacityLimitBadge: 'Lotação Máxima: 50 / 50 Pessoas',
+    capacityLimitOk: 'Entendido',
+    signInWithGoogle: 'Entrar com o Google',
+    googleConnected: 'Conectado como {name}',
+    googleGuestDivider: 'ou entrar como convidado',
+    googleLogout: 'Sair do Google',
+    googleSignInTip: '🔑 Login Google: Permite reentrar na sala de qualquer dispositivo sem duplicar o usuário e mantém seu histórico de post-its.'
   },
   es: {
     // App & Header
@@ -397,7 +406,16 @@ const translations: Record<Language, Record<string, string>> = {
     statusWaiting: 'En Espera',
     statusActive: 'Ideación',
     statusVoting: 'Votación',
-    statusLocked: 'Bloqueado'
+    statusLocked: 'Bloqueado',
+    capacityLimitTitle: 'Llegó al límite de personas',
+    capacityLimitSub: 'Esta sala ha alcanzado la capacidad máxima de 50 personas (incluyendo al profesor y facilitador). No es posible que se unan nuevos participantes en este momento.',
+    capacityLimitBadge: 'Capacidad Máxima: 50 / 50 Personas',
+    capacityLimitOk: 'Entendido',
+    signInWithGoogle: 'Iniciar sesión con Google',
+    googleConnected: 'Conectado como {name}',
+    googleGuestDivider: 'o entrar como invitado',
+    googleLogout: 'Cerrar sesión de Google',
+    googleSignInTip: '🔑 Login Google: Permite volver a entrar a la sala desde cualquier dispositivo sin duplicar usuario.'
   }
 };
 
