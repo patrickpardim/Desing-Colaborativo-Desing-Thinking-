@@ -60,9 +60,14 @@ export default function SidebarParticipants({
                       <p className="text-xs font-bold text-slate-700 truncate">
                         {p.name} {isSelf && <span className="text-[9px] text-indigo-500 font-medium font-sans">({t('youBadge')})</span>}
                       </p>
-                      <p className="text-[9px] font-medium text-slate-400 leading-none">
-                        {p.isFacilitator ? `${t('facilitatorBadge')} 👑` : `${p.votesLeft} ${t('votesRemaining')}`}
-                      </p>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[9px] font-mono text-slate-400 bg-slate-100 px-1 rounded font-semibold truncate max-w-[90px]">
+                          {p.id}
+                        </span>
+                        {p.isFacilitator && (
+                          <span className="text-[9px] font-medium text-amber-600 font-sans">👑</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

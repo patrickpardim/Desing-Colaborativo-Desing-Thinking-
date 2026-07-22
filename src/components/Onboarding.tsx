@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { AVATARS } from '../data';
 import { RoomTemplate, Participant } from '../types';
-import { Sparkles, Users, Lock, ChevronRight, Play, ArrowRight, Video, Copy, Check, ExternalLink, Eye, Key } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Sparkles, Users, Lock, ChevronRight, Play, ArrowRight, Video, Copy, Check, ExternalLink, Eye, Key, UserCheck, ShieldCheck, Tag } from 'lucide-react';
 import { useLanguage, LanguageSelector } from '../context/LanguageContext';
-
 import { fetchRoomsFromFirestore } from '../services/firebaseRoomService';
+import { generateUserId, normalizeUserId, getStoredUserProfile, saveUserProfile, UserProfile } from '../lib/userIdentity';
 
 interface OnboardingProps {
-  onJoinRoom: (pin: string, name: string, avatar: string) => void;
-  onCreateRoom: (title: string, facilitatorName: string, template: RoomTemplate) => void;
+  onJoinRoom: (pin: string, name: string, avatar: string, userId: string) => void;
+  onCreateRoom: (title: string, facilitatorName: string, template: RoomTemplate, facilitatorUserId: string) => void;
   prefilledPin?: string;
   onNavigateToAdmin?: () => void;
 }
@@ -26,16 +25,41 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'join' | 'create'>('join');
   const [pin, setPin] = useState(prefilledPin);
+  
+  // Stored Profile state
+  const [storedProfile, setStoredProfile] = useState<UserProfile | null>(null);
+  
+  // Join form sub-tabs: 'quick' (Create Quick Profile) or 'existing_id' (Enter Existing User ID)
+  const [profileSubTab, setProfileSubTab] = useState<'quick' | 'existing_id'>('quick');
+
+  // Form states for Quick Profile
   const [name, setName] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[0].emoji);
+
+  // Form state for Existing ID
+  const [existingUserId, setExistingUserId] = useState('');
+
   const [step, setStep] = useState<'pin' | 'profile'>((prefilledPin && prefilledPin.length === 6) ? 'profile' : 'pin');
   const [openRooms, setOpenRooms] = useState<OpenRoom[]>([]);
   const [copiedPin, setCopiedPin] = useState<string | null>(null);
+  const [copiedUserId, setCopiedUserId] = useState(false);
 
   // Create room states
   const [facilitatorName, setFacilitatorName] = useState('');
   const [roomTitle, setRoomTitle] = useState('');
   const [roomTemplate, setRoomTemplate] = useState<RoomTemplate>('design-thinking');
+
+  // Load existing profile on mount
+  useEffect(() => {
+    const profile = getStoredUserProfile();
+    if (profile) {
+      setStoredProfile(profile);
+      setName(profile.userName);
+      setSelectedAvatar(profile.avatarId || AVATARS[0].emoji);
+      setExistingUserId(profile.userId);
+      setFacilitatorName(profile.userName);
+    }
+  }, []);
 
   useEffect(() => {
     const loadRooms = async () => {
@@ -91,6 +115,13 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
     });
   };
 
+  const handleCopyUserIdNotice = (idToCopy: string) => {
+    navigator.clipboard.writeText(idToCopy).then(() => {
+      setCopiedUserId(true);
+      setTimeout(() => setCopiedUserId(false), 2000);
+    });
+  };
+
   const handleSelectRoom = (roomObj: OpenRoom) => {
     setPin(roomObj.pin);
     setActiveTab('join');
@@ -109,12 +140,63 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
 
   const handleJoinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
-      alert(t('enterNameAlert'));
-      return;
-    }
     const cleanPin = pin.replace(/\s+/g, '');
-    onJoinRoom(cleanPin, name.trim(), selectedAvatar);
+
+    let finalUserId = '';
+    let finalName = '';
+    let finalAvatar = selectedAvatar;
+
+    if (profileSubTab === 'quick') {
+      if (!name.trim()) {
+        alert(t('enterNameAlert'));
+        return;
+      }
+      finalName = name.trim();
+      
+      // Check if user already has a matching profile or generate a new unique User Tag (e.g. LUCAS-8492)
+      if (storedProfile && storedProfile.userName.toLowerCase() === finalName.toLowerCase()) {
+        finalUserId = storedProfile.userId;
+      } else {
+        finalUserId = generateUserId(finalName);
+      }
+
+      // Save generated/updated user profile to localStorage
+      const newProfile: UserProfile = {
+        userId: finalUserId,
+        userName: finalName,
+        avatarId: finalAvatar
+      };
+      saveUserProfile(newProfile);
+      setStoredProfile(newProfile);
+
+    } else {
+      // Option B: Enter Existing User ID (e.g. #8492 or LUCAS-8492)
+      if (!existingUserId.trim()) {
+        alert(t('invalidUserIdAlert'));
+        return;
+      }
+      finalUserId = normalizeUserId(existingUserId);
+      
+      // If there's a stored profile matching this ID, pull name/avatar
+      if (storedProfile && storedProfile.userId === finalUserId) {
+        finalName = storedProfile.userName;
+        finalAvatar = storedProfile.avatarId || selectedAvatar;
+      } else {
+        // Derive name from User ID (e.g., "LUCAS-8492" -> "Lucas") or use ID
+        const parts = finalUserId.split('-');
+        finalName = parts[0] ? (parts[0].charAt(0).toUpperCase() + parts[0].slice(1).toLowerCase()) : finalUserId;
+      }
+
+      const newProfile: UserProfile = {
+        userId: finalUserId,
+        userName: finalName,
+        avatarId: finalAvatar
+      };
+      saveUserProfile(newProfile);
+      setStoredProfile(newProfile);
+    }
+
+    onJoinRoom(cleanPin, finalName, finalAvatar, finalUserId);
   };
 
   const handleCreateSubmit = (e: React.FormEvent) => {
@@ -127,7 +209,27 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
       alert(t('enterNameAlert'));
       return;
     }
-    onCreateRoom(roomTitle.trim(), facilitatorName.trim(), roomTemplate);
+
+    const cleanFacilName = facilitatorName.trim();
+    let facilUserId = '';
+
+    // Generate or use existing facilitator User ID (e.g., FACILITADOR-1024 or CARLOS-8492)
+    if (storedProfile && storedProfile.userName.toLowerCase() === cleanFacilName.toLowerCase()) {
+      facilUserId = storedProfile.userId;
+    } else {
+      facilUserId = generateUserId(cleanFacilName);
+    }
+
+    // Save profile
+    const facilProfile: UserProfile = {
+      userId: facilUserId,
+      userName: cleanFacilName,
+      avatarId: '👑'
+    };
+    saveUserProfile(facilProfile);
+    setStoredProfile(facilProfile);
+
+    onCreateRoom(roomTitle.trim(), cleanFacilName, roomTemplate, facilUserId);
   };
 
   return (
@@ -214,8 +316,8 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
                   </button>
                 </form>
               ) : (
-                <form id="form_profile" onSubmit={handleJoinSubmit} className="space-y-6">
-                  <div className="flex items-center justify-between">
+                <form id="form_profile" onSubmit={handleJoinSubmit} className="space-y-5">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                     <button
                       type="button"
                       onClick={() => setStep('pin')}
@@ -223,52 +325,130 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
                     >
                       ← {t('backBtn')}
                     </button>
-                    <span className="text-xs font-mono font-bold px-2 py-1 bg-slate-100 rounded text-slate-600">
+                    <span className="text-xs font-mono font-bold px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-full">
                       PIN: {pin}
                     </span>
                   </div>
 
-                  <div className="space-y-2">
-                    <label htmlFor="input_name" className="text-sm font-bold text-slate-700">{t('yourNameLabel')}</label>
-                    <input
-                      id="input_name"
-                      type="text"
-                      maxLength={24}
-                      placeholder={t('namePlaceholder')}
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring focus:ring-indigo-100 outline-none text-slate-800 transition-all text-sm font-medium"
-                      autoFocus
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-3">
-                    <label className="text-sm font-bold text-slate-700 block">{t('chooseAvatar')}</label>
-                    <div id="avatar_grid" className="grid grid-cols-6 gap-2">
-                      {AVATARS.map((item) => {
-                        const isSelected = selectedAvatar === item.emoji;
-                        return (
-                          <button
-                            id={`avatar_${item.emoji}`}
-                            key={item.emoji}
-                            type="button"
-                            onClick={() => setSelectedAvatar(item.emoji)}
-                            className={`w-11 h-11 text-xl flex items-center justify-center rounded-xl border transition-all cursor-pointer ${
-                              isSelected
-                                ? 'bg-indigo-50 border-indigo-500 ring-2 ring-indigo-200 scale-105 shadow-sm'
-                                : 'bg-slate-50 border-slate-200 hover:bg-slate-100 hover:scale-102'
-                            }`}
-                            title={item.label}
-                          >
-                            {item.emoji}
-                          </button>
-                        );
-                      })}
+                  {/* Detect Stored User Tag Banner */}
+                  {storedProfile && (
+                    <div id="detected_user_tag_card" className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-3 flex items-center justify-between text-xs text-emerald-900 shadow-2xs">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <UserCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <div className="truncate">
+                          <p className="font-bold truncate">{storedProfile.userName} <span className="font-mono text-emerald-700 font-extrabold bg-emerald-100/80 px-1.5 py-0.5 rounded text-[10px]">{storedProfile.userId}</span></p>
+                          <p className="text-[10px] text-emerald-700">ID salvo no navegador (reconectando)</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProfileSubTab('existing_id');
+                          setExistingUserId(storedProfile.userId);
+                        }}
+                        className="text-[10px] font-bold text-emerald-800 hover:underline shrink-0 ml-2"
+                      >
+                        {t('useAnotherProfile')}
+                      </button>
                     </div>
+                  )}
+
+                  {/* Profile Input Sub-Tabs Option A vs Option B */}
+                  <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-bold gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setProfileSubTab('quick')}
+                      className={`flex-1 py-1.5 px-2 rounded-lg transition-all ${
+                        profileSubTab === 'quick'
+                          ? 'bg-white text-indigo-700 shadow-xs'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      {t('optionQuickProfile')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setProfileSubTab('existing_id')}
+                      className={`flex-1 py-1.5 px-2 rounded-lg transition-all ${
+                        profileSubTab === 'existing_id'
+                          ? 'bg-white text-indigo-700 shadow-xs'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      {t('optionExistingId')}
+                    </button>
                   </div>
 
-                  <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-3 text-[11px] text-slate-500 leading-relaxed font-medium">
+                  {/* SUB-TAB 1: QUICK PROFILE (Nome + Avatar) */}
+                  {profileSubTab === 'quick' ? (
+                    <div className="space-y-4">
+                      <div className="space-y-1.5">
+                        <label htmlFor="input_name" className="text-sm font-bold text-slate-700">{t('yourNameLabel')}</label>
+                        <input
+                          id="input_name"
+                          type="text"
+                          maxLength={24}
+                          placeholder={t('namePlaceholder')}
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring focus:ring-indigo-100 outline-none text-slate-800 transition-all text-sm font-medium"
+                          autoFocus
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-slate-700 block">{t('chooseAvatar')}</label>
+                        <div id="avatar_grid" className="grid grid-cols-6 gap-2">
+                          {AVATARS.map((item) => {
+                            const isSelected = selectedAvatar === item.emoji;
+                            return (
+                              <button
+                                id={`avatar_${item.emoji}`}
+                                key={item.emoji}
+                                type="button"
+                                onClick={() => setSelectedAvatar(item.emoji)}
+                                className={`w-11 h-11 text-xl flex items-center justify-center rounded-xl border transition-all cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-indigo-50 border-indigo-500 ring-2 ring-indigo-200 scale-105 shadow-sm'
+                                    : 'bg-slate-50 border-slate-200 hover:bg-slate-100 hover:scale-102'
+                                }`}
+                                title={item.label}
+                              >
+                                {item.emoji}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* SUB-TAB 2: EXISTING USER ID (Estilo Discord #8492 / LUCAS-8492) */
+                    <div className="space-y-4">
+                      <div className="space-y-1.5">
+                        <label htmlFor="input_user_id" className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+                          <Tag className="w-4 h-4 text-indigo-600" />
+                          {t('userIdLabel')} (Estilo Discord)
+                        </label>
+                        <input
+                          id="input_user_id"
+                          type="text"
+                          maxLength={20}
+                          placeholder={t('userIdPlaceholder')}
+                          value={existingUserId}
+                          onChange={(e) => setExistingUserId(e.target.value)}
+                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring focus:ring-indigo-100 outline-none text-slate-800 transition-all text-sm font-mono font-bold tracking-wide uppercase"
+                          autoFocus
+                          required
+                        />
+                        <p className="text-[11px] text-slate-400">
+                          Cole seu código único (Ex: <span className="font-mono text-slate-600 font-bold">#8492</span> ou <span className="font-mono text-slate-600 font-bold">LUCAS-8492</span>) para recuperar seu perfil e permissões em qualquer dispositivo.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-3 text-[11px] text-slate-600 leading-relaxed font-medium">
                     {t('facilitatorTip')}
                   </div>
 
@@ -392,13 +572,6 @@ export default function Onboarding({ onJoinRoom, onCreateRoom, prefilledPin = ''
           
           <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1 scrollbar-thin">
             {openRooms.map((roomItem) => {
-              const statusColors: Record<string, string> = {
-                waiting: 'bg-slate-100 text-slate-600 border-slate-200',
-                active: 'bg-indigo-50 text-indigo-700 border-indigo-100',
-                voting: 'bg-amber-50 text-amber-700 border-amber-100',
-                locked: 'bg-rose-50 text-rose-700 border-rose-100'
-              };
-              
               return (
                 <div
                   key={roomItem.pin}

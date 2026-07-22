@@ -13,6 +13,7 @@ import ColumnInfoPopover from './components/ColumnInfoPopover';
 import CapacityLimitModal from './components/CapacityLimitModal';
 
 import { Plus, Check, Volume2, VolumeX, Sparkles, AlertCircle, Copy, CheckCircle2, LayoutGrid, Heart } from 'lucide-react';
+import { generateUserId, normalizeUserId } from './lib/userIdentity';
 import {
   createRoomInFirestore,
   joinRoomInFirestore,
@@ -312,7 +313,7 @@ export default function App() {
   };
 
   // ONBOARDING ACTION: Join Existing Room
-  const handleJoinRoom = async (pin: string, name: string, avatar: string) => {
+  const handleJoinRoom = async (pin: string, name: string, avatar: string, userIdInput?: string) => {
     triggerSound('success');
 
     // Retrieve room from localStorage as fallback initial state
@@ -329,8 +330,16 @@ export default function App() {
       participantsObj = JSON.parse(localStorage.getItem(`participants_${pin}`) || '[]');
     }
 
-    const isFacil = roomObj ? (name.trim().toLowerCase() === roomObj.facilitatorName.trim().toLowerCase()) : false;
-    const existingFacil = participantsObj.find(p => p.isFacilitator);
+    // Determine current user ID tag (e.g. LUCAS-8492 or #8492)
+    const currentUserId = userIdInput ? normalizeUserId(userIdInput) : generateUserId(name);
+
+    // Check if current user is the owner/facilitator of this room:
+    // 1. Matching ownerUserId
+    // 2. Exact match on facilitatorName
+    const isFacil = roomObj ? (
+      (roomObj.ownerUserId && roomObj.ownerUserId === currentUserId) ||
+      (roomObj.facilitatorName && name.trim().toLowerCase() === roomObj.facilitatorName.trim().toLowerCase())
+    ) : false;
 
     // Fetch up-to-date participants snapshot from Firestore
     let fsParticipants: Participant[] = [];
@@ -342,10 +351,12 @@ export default function App() {
 
     // Determine current effective participant list
     const currentParticipantList = fsParticipants.length > 0 ? fsParticipants : participantsObj;
-    const trimmedName = name.trim().toLowerCase();
 
-    // Check if the user is ALREADY a registered participant in this room (or the facilitator re-joining)
-    const isAlreadyMember = currentParticipantList.some(p => p.name.trim().toLowerCase() === trimmedName) || isFacil;
+    // Find existing participant entry if reconnecting or re-entering
+    const existingParticipant = currentParticipantList.find(
+      p => p.id === currentUserId || p.name.trim().toLowerCase() === name.trim().toLowerCase()
+    );
+    const isAlreadyMember = Boolean(existingParticipant) || isFacil;
 
     // CAPACITY CHECK: Max 50 people including teacher/facilitator
     const MAX_ROOM_CAPACITY = 50;
@@ -355,15 +366,15 @@ export default function App() {
     }
 
     const newUser: Participant = {
-      id: isFacil ? (existingFacil?.id || `facilitator_${Date.now()}`) : `user_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      name: isFacil ? roomObj?.facilitatorName || name : name,
+      id: currentUserId,
+      name: isFacil ? (roomObj?.facilitatorName || name) : name,
       avatar: isFacil ? '👑' : avatar,
       isFacilitator: isFacil,
-      votesLeft: isFacil ? 0 : (roomObj ? roomObj.maxVotesPerPerson : 5),
+      votesLeft: isFacil ? 0 : (existingParticipant ? existingParticipant.votesLeft : (roomObj ? roomObj.maxVotesPerPerson : 5)),
       online: true
     };
 
-    // Try joining in Firestore
+    // Try joining in Firestore (UPSERT participant in room subcollection)
     try {
       const fsRoom = await joinRoomInFirestore(pin, newUser);
       if (fsRoom) {
@@ -378,10 +389,17 @@ export default function App() {
       return;
     }
 
-    const updatedParticipants = [
-      ...participantsObj.filter(p => p.name.trim().toLowerCase() !== name.trim().toLowerCase()), 
-      newUser
-    ];
+    // UPSERT into local array (by user ID or name)
+    const existingIndex = participantsObj.findIndex(
+      p => p.id === newUser.id || p.name.trim().toLowerCase() === newUser.name.trim().toLowerCase()
+    );
+    let updatedParticipants: Participant[] = [];
+    if (existingIndex >= 0) {
+      updatedParticipants = [...participantsObj];
+      updatedParticipants[existingIndex] = { ...updatedParticipants[existingIndex], ...newUser, online: true };
+    } else {
+      updatedParticipants = [...participantsObj, newUser];
+    }
     
     localStorage.setItem(`participants_${pin}`, JSON.stringify(updatedParticipants));
 
@@ -393,19 +411,24 @@ export default function App() {
 
     broadcastChange('STATE_CHANGED');
     broadcastChange('TOAST_ALERT', `${avatar} ${name} entrou no quadro!`);
+    showToast(`Seu ID de Usuário é ${currentUserId}. Guarde este código para acessar de outros aparelhos!`);
   };
 
   // ONBOARDING ACTION: Create New Room
-  const handleCreateRoom = async (title: string, facilitatorName: string, template: RoomTemplate) => {
+  const handleCreateRoom = async (title: string, facilitatorName: string, template: RoomTemplate, facilitatorUserIdInput?: string) => {
     triggerSound('success');
 
     // Generate random unique 6-digit PIN code
     const pin = Math.floor(100000 + Math.random() * 900000).toString();
 
+    // Determine unique facilitator User ID (e.g. FACILITADOR-1024 or CARLOS-9281)
+    const facilUserId = facilitatorUserIdInput ? normalizeUserId(facilitatorUserIdInput) : generateUserId(facilitatorName);
+
     const roomObj: Room = {
       pin,
       title,
       facilitatorName,
+      ownerUserId: facilUserId,
       template,
       status: 'waiting',
       timerSeconds: 300, // 5 minutes default
@@ -416,7 +439,7 @@ export default function App() {
     };
 
     const facilitatorUser: Participant = {
-      id: `facilitator_${Date.now()}`,
+      id: facilUserId,
       name: facilitatorName,
       avatar: '👑',
       isFacilitator: true,
@@ -451,6 +474,7 @@ export default function App() {
     }
 
     broadcastChange('STATE_CHANGED');
+    showToast(`👑 Sala Criada! Seu ID de Facilitador é ${facilUserId}. Guarde este código para controlar a sala de qualquer aparelho!`);
   };
 
   // LEAVE / DISCONNECT ACTION

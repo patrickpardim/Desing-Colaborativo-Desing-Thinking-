@@ -8,6 +8,7 @@
         "pin": { "type": "string", "description": "6-digit room PIN code" },
         "title": { "type": "string", "description": "Title of the session" },
         "facilitatorName": { "type": "string", "description": "Name of the facilitator" },
+        "ownerUserId": { "type": "string", "description": "Unique Discord-style User ID of the room creator/facilitator (e.g. FACILITADOR-1024 or LUCAS-8492)" },
         "template": { "type": "string", "enum": ["design-thinking", "sticky-board"] },
         "status": { "type": "string", "enum": ["waiting", "active", "voting", "locked"] },
         "timerSeconds": { "type": "number" },

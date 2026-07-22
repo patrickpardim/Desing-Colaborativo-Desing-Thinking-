@@ -1,7 +1,13 @@
 export type NoteColor = 'yellow' | 'blue' | 'green' | 'pink' | 'purple';
 
+export interface UserProfile {
+  userId: string;
+  userName: string;
+  avatarId: string;
+}
+
 export interface Participant {
-  id: string;
+  id: string; // User ID (e.g. LUCAS-8492)
   name: string;
   avatar: string;
   isFacilitator: boolean;
@@ -39,6 +45,7 @@ export interface Room {
   pin: string;
   title: string;
   facilitatorName: string;
+  ownerUserId?: string; // ID of the room creator/facilitator (e.g. FACILITADOR-1024 or LUCAS-8492)
   template: RoomTemplate;
   status: RoomStatus;
   timerSeconds: number;
