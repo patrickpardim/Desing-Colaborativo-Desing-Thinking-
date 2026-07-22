@@ -53,3 +53,13 @@ export interface BroadcastMessage {
   payload: any;
   senderId: string;
 }
+
+export interface AdminLoginRecord {
+  id: string;
+  user: string;
+  timestamp: number;
+  success: boolean;
+  userAgent: string;
+  createdAtFormatted: string;
+  ip?: string;
+}

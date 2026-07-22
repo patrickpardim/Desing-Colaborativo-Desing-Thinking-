@@ -9,6 +9,7 @@ import SidebarParticipants from './components/SidebarParticipants';
 import FacilitatorControls from './components/FacilitatorControls';
 import ExportModal from './components/ExportModal';
 import AdminConsole from './components/AdminConsole';
+import ColumnInfoPopover from './components/ColumnInfoPopover';
 
 import { Plus, Check, Volume2, VolumeX, Sparkles, AlertCircle, Copy, CheckCircle2, LayoutGrid, Heart } from 'lucide-react';
 import {
@@ -970,15 +971,16 @@ export default function App() {
                 <section
                   id={`column_${col.id}`}
                   key={col.id}
-                  className={`flex flex-col gap-4 bg-white/40 border border-slate-200/50 rounded-xl p-4 overflow-hidden relative h-full w-[280px] sm:w-[320px] shrink-0 ${
+                  className={`flex flex-col gap-4 bg-white/40 border border-slate-200/50 rounded-xl p-4 relative h-full w-[280px] sm:w-[320px] shrink-0 ${
                     col.locked ? 'bg-slate-100/50 opacity-90' : ''
                   }`}
                 >
                   {/* Column Header */}
-                  <div className={`h-11 border-b-2 ${col.color || 'border-slate-300'} flex items-center justify-between px-1`}>
-                    <div className="flex items-center gap-2">
+                  <div className={`h-11 border-b-2 ${col.color || 'border-slate-300'} flex items-center justify-between px-1 relative`}>
+                    <div className="flex items-center gap-1.5">
                       <h3 className="font-bold text-slate-700 text-sm md:text-base tracking-tight font-display">{col.title}</h3>
-                      {col.locked && <span className="text-[10px] bg-rose-50 text-rose-500 font-extrabold px-1.5 py-0.5 rounded-full border border-rose-100">🔒 Travada</span>}
+                      <ColumnInfoPopover columnId={col.id} columnTitle={col.title} />
+                      {col.locked && <span className="text-[10px] bg-rose-50 text-rose-500 font-extrabold px-1.5 py-0.5 rounded-full border border-rose-100 ml-1">🔒 Travada</span>}
                     </div>
                     <span id={`column_count_${col.id}`} className="text-xs font-bold text-slate-500 bg-slate-200/50 border border-slate-200 px-2.5 py-0.5 rounded-full">
                       {colIdeas.length}

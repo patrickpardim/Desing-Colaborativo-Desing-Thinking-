@@ -64,6 +64,20 @@
         "locked": { "type": "boolean" }
       },
       "required": ["id", "title"]
+    },
+    "AdminLogin": {
+      "title": "AdminLogin",
+      "description": "Record of admin login attempt in Firestore",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "user": { "type": "string" },
+        "timestamp": { "type": "number" },
+        "success": { "type": "boolean" },
+        "userAgent": { "type": "string" },
+        "createdAtFormatted": { "type": "string" }
+      },
+      "required": ["user", "timestamp", "success"]
     }
   },
   "firestore": {
@@ -82,6 +96,10 @@
     "/rooms/{pin}/columns/{columnId}": {
       "schema": "RoomColumn",
       "description": "Columns in a room"
+    },
+    "/admin_logins/{loginId}": {
+      "schema": "AdminLogin",
+      "description": "Audit trail for admin console logins"
     }
   }
 }

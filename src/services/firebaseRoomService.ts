@@ -11,8 +11,9 @@ import {
   orderBy
 } from 'firebase/firestore';
 import { db, ensureAuth, handleFirestoreError, OperationType } from '../lib/firebase';
-import { Room, Idea, Participant, RoomColumn } from '../types';
+import { Room, Idea, Participant, RoomColumn, AdminLoginRecord } from '../types';
 import { KNOWN_COLUMN_ORDER } from '../data';
+
 
 // Create a new room with columns and initial facilitator in Firestore
 export async function createRoomInFirestore(
@@ -281,3 +282,58 @@ export async function terminateRoomInFirestore(pin: string): Promise<void> {
     handleFirestoreError(error, OperationType.DELETE, path);
   }
 }
+
+// Record admin login in Firestore
+export async function recordAdminLoginToFirestore(
+  user: string,
+  success: boolean
+): Promise<AdminLoginRecord | null> {
+  await ensureAuth();
+  const id = `login_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const now = Date.now();
+  const loginRecord: AdminLoginRecord = {
+    id,
+    user,
+    timestamp: now,
+    success,
+    userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown',
+    createdAtFormatted: new Date(now).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+  };
+
+  const path = `admin_logins/${id}`;
+  try {
+    await setDoc(doc(db, 'admin_logins', id), loginRecord);
+    return loginRecord;
+  } catch (error) {
+    console.error("Failed to record admin login to Firestore:", error);
+    handleFirestoreError(error, OperationType.WRITE, path);
+    return null;
+  }
+}
+
+// Subscribe to admin login logs from Firestore
+export function subscribeAdminLoginsFromFirestore(
+  onUpdate: (logs: AdminLoginRecord[]) => void
+) {
+  const path = 'admin_logins';
+  try {
+    const q = query(collection(db, 'admin_logins'), orderBy('timestamp', 'desc'));
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const logs: AdminLoginRecord[] = [];
+        snapshot.forEach((docSnap) => {
+          logs.push(docSnap.data() as AdminLoginRecord);
+        });
+        onUpdate(logs);
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.GET, path);
+      }
+    );
+  } catch (error) {
+    console.error("Error subscribing to admin logins:", error);
+    return () => {};
+  }
+}
+

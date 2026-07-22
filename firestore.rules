@@ -41,5 +41,14 @@ service cloud.firestore {
         allow create, update, delete: if true;
       }
     }
+
+    // Admin logins and credentials
+    match /admin_logins/{loginId} {
+      allow read, create, update, delete: if true;
+    }
+
+    match /admin_credentials/{docId} {
+      allow read, create, update: if true;
+    }
   }
 }
